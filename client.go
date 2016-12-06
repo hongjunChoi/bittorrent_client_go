@@ -1,6 +1,7 @@
 package main
 
 import (
+	bencode "./bencode-go"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,19 +10,23 @@ import (
 
 func main() {
 	metaInfo := new(MetaInfo)
-	metaInfo.ReadTorrentMetaInfoFile("trial.torrent")
+	metaInfo.ReadTorrentMetaInfoFile("data/trial.torrent")
+	trackerUrl := metaInfo.Announce
 
 	data := parseMetaInfo(metaInfo)
-	peerId := url.QueryEscape("asdf")
+	peerId := url.QueryEscape("ABCDEFGHIJKLMNOPQRST")
 	data["peer_id"] = peerId
+
+	peerList := get_peer_list(trackerUrl, data)
+	fmt.Println(peerList)
 
 	return
 }
 
 //TODO: COMPLETE THIS PART
-func parseMetaInfo(info MetaInfo) map[string]string {
+func parseMetaInfo(info *MetaInfo) map[string]string {
 	data := make(map[string]string)
-	data["info_hash"] = info.InfoHash
+	data["info_hash"] = url.QueryEscape(info.InfoHash)
 	data["port"] = "6881"
 	data["uploaded"] = "0"
 	data["downloaded"] = "0"
@@ -30,31 +35,54 @@ func parseMetaInfo(info MetaInfo) map[string]string {
 	// data["no_peer_id"]
 	// data["event"]
 
+	return data
 }
 
 func get_peer_list(trackerUrl string, data map[string]string) []string {
 	url := createTrackerQuery(trackerUrl, data)
+
+	fmt.Println("========     URL TO CALL TRACKER    ========")
+	fmt.Println(url)
+	fmt.Println("===============")
+
 	resp, err := http.Get(url)
 
 	if err != nil {
 		// handle error
-		fmt.Println("====  error in getting resp from tracker server  ====")
+		fmt.Println("\n\n====  error in getting resp from tracker server  ====")
+		fmt.Println(err)
+		fmt.Println("========\n\n")
+		return make([]string, 0)
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	print(body)
+	// responseData = bencode
+	fmt.Println("\n\n======= body =======\n")
+	fmt.Println(body)
+	fmt.Println("\n==============")
 
-	return make([]string, 1)
+	return resposneData
 }
 
 func createTrackerQuery(baseUrl string, data map[string]string) string {
-	params := url.Values{}
+	// params := url.Values{}
+	url := baseUrl + "?"
+	count := 0
+
 	for k, v := range data {
-		params.Add(k, v)
+
+		url = url + k + "=" + v
+
+		if count < len(data)-1 {
+			url = url + "&"
+
+		}
+
+		count += 1
+
 	}
 
-	finalUrl := baseUrl + params.Encode()
-	return finalUrl
+	return url
 }
