@@ -1,37 +1,22 @@
 package main
 
 import (
-	"./bencode-go"
+	// "./bencode-go"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 )
 
 func main() {
+	metaInfo := new(MetaInfo)
+	metaInfo.ReadTorrentMetaInfoFile("trial.torrent")
+	fmt.Println(metaInfo.Info.Files)
+
 	peerId := url.QueryEscape("asdf")
 	fmt.Println(peerId)
 
-	file, er := os.Open("trial.torrent")
-	if er != nil {
-		// return false
-		fmt.Println(er)
-	}
-	defer file.Close()
-
-	// Decode bencoded metainfo file.
-	fileMetaData, er := bencode.Decode(file)
-	if er != nil {
-		fmt.Println(er)
-	}
-	metaInfoMap, _ := fileMetaData.(map[string]interface{})
-
-	for k, _ := range metaInfoMap {
-		fmt.Printf("key[%s] ", k)
-	}
-
-	fmt.Println(metaInfoMap["url-list"])
+	return
 }
 
 func get_peer_list(trackerUrl string, data map[string]string) []string {
