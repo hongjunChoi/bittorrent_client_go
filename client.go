@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 )
 
@@ -20,7 +21,7 @@ type Peer struct {
 	RemoteInterested bool
 	RemotePeerId     string
 	RemotePeerIP     string
-	RremotePeerPort  int
+	RremotePeerPort  uint16
 }
 
 type Client struct {
@@ -34,9 +35,11 @@ func main() {
 	trackerUrl := metaInfo.Announce
 
 	data := parseMetaInfo(metaInfo)
-	peerId := url.QueryEscape("ABCDEFGHIJKLMNOPQRST")
+
+	peerId := url.QueryEscape(generatePeerId())
 	data["peer_id"] = peerId
 
+	fmt.Println(len(peerId))
 	peerList := get_peer_list(trackerUrl, data)
 	fmt.Println(peerList)
 
@@ -59,17 +62,14 @@ func parseMetaInfo(info *MetaInfo) map[string]string {
 	// data["compact"] = "0"
 	// data["no_peer_id"]
 	// data["event"]
+	// a := [1]map[string]string{data}
+	// fmt.Print(a.)
 
 	return data
 }
 
-func get_peer_list(trackerUrl string, data map[string]string) []string {
+func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 	url := createTrackerQuery(trackerUrl, data)
-
-	fmt.Println("========     URL TO CALL TRACKER    ========")
-	fmt.Println(url)
-	fmt.Println("===============")
-
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -77,28 +77,52 @@ func get_peer_list(trackerUrl string, data map[string]string) []string {
 		fmt.Println("\n\n====  error in getting resp from tracker server  ====")
 		fmt.Println(err)
 		fmt.Println("========\n\n")
-		return make([]string, 0)
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 
-	// TODO: parse body with bencode
+	r := bytes.NewReader(body)
+	peerDictData, er := bencode.Decode(r)
+	if er != nil {
+		fmt.Println(er)
+	}
+	peerDict, _ := peerDictData.(map[string]interface{})
 
-	reader := bytes.NewReader([]byte(body))
+	peers := []byte(peerDict["peers"].(string))
+	peerData := make([]*Peer, len(peers)/6)
 
-	dict, err := bencode.Decode(reader)
-	if err != nil {
-		fmt.Println("ERROR : error in decoding bencoded txt to data")
+	for i := 0; i < len(peers)/6; i++ {
+		index := i * 6
+		ip := peers[index : index+4]
+		port := peers[index+4 : index+6]
+
+		peer := new(Peer)
+
+		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
+		peer.RremotePeerPort = binary.BigEndian.Uint16(port)
+
+		peerData[i] = peer
 	}
 
-	fmt.Println("\n\n======= body =======\n")
-	fmt.Println(dict)
-	fmt.Println("\n==============")
+	return peerData
+}
 
-	// return resposneData
-	return make([]string, 0)
+func startTCPConnection(ip string, port string) {
+
+	conn, _ := net.Dial("tcp", ip+":"+port)
+	for {
+		// read in input from stdin
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Text to send: ")
+		text, _ := reader.ReadString('\n')
+		// send to socket
+		fmt.Fprintf(conn, text+"\n")
+		// listen for reply
+		message, _ := bufio.NewReader(conn).ReadString('\n')
+		fmt.Print("Message from server: " + message)
+	}
 }
 
 func createTrackerQuery(baseUrl string, data map[string]string) string {
@@ -126,7 +150,7 @@ func (c *Client) connectToPeer(peer *Peer) {
 	peerIP := peer.RemotePeerIP
 	peerPortNum := peer.RremotePeerPort
 
-	conn, err := net.Dial("tcp", peerIP+strconv.Itoa(peerPortNum))
+	conn, err := net.Dial("tcp", peerIP+strconv.Itoa(int(peerPortNum)))
 	if err != nil {
 		fmt.Println("ERROR IN PEER HANDSHAKE")
 		return
@@ -153,5 +177,5 @@ func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
 	msgLen := uint32(len(msg))
 	lenBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(lenBytes, msgLen)
-
+	return make([]byte, 0)
 }
