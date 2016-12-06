@@ -1,12 +1,32 @@
 package main
 
 import (
-	// bencode "./bencode-go"
+	bencode "./bencode-go"
+	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 )
+
+type Peer struct {
+	SelfChoking      bool
+	SelfInterested   bool
+	RemoteChoking    bool
+	RemoteInterested bool
+	RemotePeerId     string
+	RemotePeerIP     string
+	RremotePeerPort  int
+}
+
+type Client struct {
+	Id    string          // self peer id
+	Peers map[string]Peer //MAP of remote peer id : peer data
+}
 
 func main() {
 	metaInfo := new(MetaInfo)
@@ -65,10 +85,16 @@ func get_peer_list(trackerUrl string, data map[string]string) []string {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	// TODO: parse body with bencode
-	// responseData = bencode
+
+	reader := bytes.NewReader([]byte(body))
+
+	dict, err := bencode.Decode(reader)
+	if err != nil {
+		fmt.Println("ERROR : error in decoding bencoded txt to data")
+	}
 
 	fmt.Println("\n\n======= body =======\n")
-	fmt.Println(string(body))
+	fmt.Println(dict)
 	fmt.Println("\n==============")
 
 	// return resposneData
@@ -94,4 +120,38 @@ func createTrackerQuery(baseUrl string, data map[string]string) string {
 	}
 
 	return url
+}
+
+func (c *Client) connectToPeer(peer *Peer) {
+	peerIP := peer.RemotePeerIP
+	peerPortNum := peer.RremotePeerPort
+
+	conn, err := net.Dial("tcp", peerIP+strconv.Itoa(peerPortNum))
+	if err != nil {
+		fmt.Println("ERROR IN PEER HANDSHAKE")
+		return
+	}
+
+	// Client transmit first message to server
+	firstMsg := ""
+	fmt.Fprintf(conn, firstMsg)
+
+	// for {
+	// 	// read in input from stdin
+	// 	reader := bufio.NewReader(os.Stdin)
+	// 	fmt.Print("Text to send: ")
+	// 	text, _ := reader.ReadString('\n')
+	// 	// send to socket
+
+	// 	// listen for reply
+	// 	message, _ := bufio.NewReader(conn).ReadString('\n')
+	// 	fmt.Print("Message from server: " + message)
+	// }
+}
+
+func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
+	msgLen := uint32(len(msg))
+	lenBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(lenBytes, msgLen)
+
 }
