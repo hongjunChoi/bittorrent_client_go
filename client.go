@@ -1,7 +1,6 @@
 package main
 
 import (
-	// "./bencode-go"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,12 +10,26 @@ import (
 func main() {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile("trial.torrent")
-	fmt.Println(metaInfo.Info.Files)
 
+	data := parseMetaInfo(metaInfo)
 	peerId := url.QueryEscape("asdf")
-	fmt.Println(peerId)
+	data["peer_id"] = peerId
 
 	return
+}
+
+//TODO: COMPLETE THIS PART
+func parseMetaInfo(info MetaInfo) map[string]string {
+	data := make(map[string]string)
+	data["info_hash"] = info.InfoHash
+	data["port"] = "6881"
+	data["uploaded"] = "0"
+	data["downloaded"] = "0"
+	data["left"] = "0"
+	data["compact"] = "0"
+	// data["no_peer_id"]
+	// data["event"]
+
 }
 
 func get_peer_list(trackerUrl string, data map[string]string) []string {
