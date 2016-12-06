@@ -1,7 +1,6 @@
 package main
 
 import (
-	// "./bencode-go"
 	"bufio"
 	"fmt"
 	"io/ioutil"
@@ -9,12 +8,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"bytes"
+	"./bencode-go"
+	// "strconv"
+	"encoding/binary"
 	// "string"
 )
 
 func main() {
 	metaInfo := new(MetaInfo)
-	metaInfo.ReadTorrentMetaInfoFile("data/trial.torrent")
+	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
 	trackerUrl := metaInfo.Announce
 
 	data := parseMetaInfo(metaInfo)
@@ -31,6 +34,11 @@ func main() {
 
 //TODO: COMPLETE THIS PART
 func parseMetaInfo(info *MetaInfo) map[string]string {
+	fmt.Println("===== info hash =====")
+	fmt.Println(info.InfoHash)
+	fmt.Println(url.QueryEscape(info.InfoHash))
+	fmt.Println("=======")
+
 	data := make(map[string]string)
 	data["info_hash"] = url.QueryEscape(info.InfoHash)
 	data["port"] = "6881"
@@ -66,23 +74,60 @@ func get_peer_list(trackerUrl string, data map[string]string) []string {
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	// responseData = bencode
-	// Decode bencoded metainfo file.
-	// peerDict, er := bencode.Decode(string(body))
-	// if er != nil {
-	// 	return false
-	// }
 
-	// // fileMetaData is map of maps of... maps. Get top level map.
-	// metaInfoMap, ok := peerDict.([]interface{})
-	// if !ok {
-	// 	return false
-	// }
-	// fmt.Println(metaInfoMap)
+	// TODO: parse body with bencode
+	// responseData = bencode
+// <<<<<<< HEAD
+// 	// Decode bencoded metainfo file.
+// 	// peerDict, er := bencode.Decode(string(body))
+// 	// if er != nil {
+// 	// 	return false
+// 	// }
+
+// 	// // fileMetaData is map of maps of... maps. Get top level map.
+// 	// metaInfoMap, ok := peerDict.([]interface{})
+// 	// if !ok {
+// 	// 	return false
+// 	// }
+// 	// fmt.Println(metaInfoMap)
+// =======
+// >>>>>>> f3f50255e80002216717f880cdc07ff5cdfbd8c5
 
 	fmt.Println("\n\n======= body =======\n")
-	fmt.Println(string(body))
-	fmt.Println("\n==============")
+	r := bytes.NewReader(body)
+	peerDictData, er := bencode.Decode(r)
+	if er != nil {
+		fmt.Println(er)
+	}
+	peerDict, _ := peerDictData.(map[string]interface{})
+	fmt.Println(peerDict)
+	fmt.Println("\n==============",[]byte(peerDict["peers"].(string)))
+	peers := []byte(peerDict["peers"].(string))
+	ip := peers[0:4]
+	fmt.Println(ip)
+	// buf := bytes.NewBuffer(ip)
+	// datas, _ := binary.ReadVarint(buf)
+	// x := bytes.NewReader([]byte(peerDict["peers"].(string)))
+	// d, _ := bencode.Decode(x)
+	// peerd, _ := d.(map[string]interface{})
+
+	fmt.Println(net.IPv4(ip[0],ip[1],ip[2],ip[3]))
+	// r = bytes.NewReader(peerDict["peers"])
+	// peer, _ := bencode.Decode(r)
+	// peerDict, _ = peer.(map[string]interface{})
+	// fmt.Println("\n==============",peerDict)
+	port := peers[4:6]
+	// var v uint32
+	// err = binary.Read(bytes.NewReader(port),binary.LittleEndian, &v)
+	// if err != nil {
+	// // return 0, err
+	// 	fmt.Println(err)
+	// }
+	// // return v, nil
+		fmt.Println(binary.BigEndian.Uint16(port))
+
+	
+
 	var s []string
 	return s
 }
