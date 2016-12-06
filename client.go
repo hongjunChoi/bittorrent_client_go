@@ -14,11 +14,28 @@ import (
 func main() {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile("trial.torrent")
-	fmt.Println()
+
+	data := parseMetaInfo(metaInfo)
+	peerId := url.QueryEscape("asdf")
+	data["peer_id"] = peerId
 
 	peerId := url.QueryEscape(generatePeerId())
 	fmt.Println(len(peerId))
 	return
+}
+
+//TODO: COMPLETE THIS PART
+func parseMetaInfo(info MetaInfo) map[string]string {
+	data := make(map[string]string)
+	data["info_hash"] = info.InfoHash
+	data["port"] = "6881"
+	data["uploaded"] = "0"
+	data["downloaded"] = "0"
+	data["left"] = "0"
+	data["compact"] = "0"
+	// data["no_peer_id"]
+	// data["event"]
+
 }
 
 func get_peer_list(trackerUrl string, data map[string]string) []string {
@@ -39,7 +56,8 @@ func get_peer_list(trackerUrl string, data map[string]string) []string {
 }
 
 func startTCPConnection(ip string, port string) {
-	conn, _ := net.Dial("tcp", "127.0.0.1:8081")
+
+	conn, _ := net.Dial("tcp", ip+":"+port)
 	for {
 		// read in input from stdin
 		reader := bufio.NewReader(os.Stdin)
