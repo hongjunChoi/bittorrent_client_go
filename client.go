@@ -179,6 +179,8 @@ func (c *Client) connectToPeer(peer *Peer, infohash string) {
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
 
+	// bitMapMsg := createBitMapMsg(to)
+
 }
 
 // func (c *Client) createBitMapMsg() []byte {
@@ -188,6 +190,15 @@ func (c *Client) connectToPeer(peer *Peer, infohash string) {
 
 // 	// peer (torrent1, torrent2)
 // }
+
+func createBitMapMsg(numPieces int64, bitMap []byte) []byte {
+	data := make([]byte, 0)
+	data = append(data, uint8(numPieces))
+	data = append(data, uint8(5))
+	data = append(data, bitMap...)
+
+	return data
+}
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
 
