@@ -33,7 +33,7 @@ func main() {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
 	trackerUrl := metaInfo.Announce
-
+	fmt.Println(metaInfo.Info.PieceLength)
 	data := parseMetaInfo(metaInfo)
 
 	peerId := url.QueryEscape(generatePeerId())
