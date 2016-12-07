@@ -88,10 +88,6 @@ func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 
-	fmt.Println("====== torrent file info =========")
-	fmt.Println(metaInfo.Info)
-	fmt.Println("===================================")
-
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
@@ -108,9 +104,12 @@ func (c *Client) addTorrent(filename string) {
 
 	data := parseMetaInfo(metaInfo)
 	data["peer_id"] = c.Id
+
 	peerList := get_peer_list(trackerUrl, data)
 	torrent.PeerList = peerList
 	torrent.InfoHash = metaInfo.InfoHash
+	torrent.PieceMap = make(map[uint32]*Piece)
+
 	c.TorrentList = append(c.TorrentList, torrent)
 
 	c.peerListHandShake(torrent, peerList)
@@ -120,6 +119,7 @@ func (c *Client) addTorrent(filename string) {
 	for i := 0; i < torrent.NumPieces; i++ {
 		piece := new(Piece)
 		piece.Index = i
+		piece.BlockMap = make(map[uint32]*Block)
 		numBlocks := int(math.Ceil(float64(torrent.PieceSize / BLOCKSIZE)))
 		piece.BitMap = make([]byte, int(math.Ceil(float64(numBlocks/8))))
 
@@ -142,7 +142,7 @@ func (c *Client) addTorrent(filename string) {
 		}
 	}
 
-	for _, peer := range peerList {
+	for _, peer := range torrent.PeerList {
 		go c.handlePeerConnection(peer, torrent)
 	}
 
@@ -156,7 +156,6 @@ func (c *Client) peerListHandShake(torrent *Torrent, peerList []*Peer) {
 			deleteIndex := getPeerIndex(torrent, peer)
 			torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
 			fmt.Println("hand shake failed...")
-			return
 		}
 	}
 	go keepPeerListAlive(torrent)
@@ -188,17 +187,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		return
 	}
 
-	// 	// bitMapBuf = bitMapBuf[0:numRecved]
-	// 	// bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
-	// 	// bitMapRecvProtocol := int(bitMapBuf[4])
-
-	// 	fmt.Println(bitMapBuf)
-
-	// 	fmt.Println("---sending bitmap buf")
-	// 	bitMapMsg := createBitMapMsg(torrent)
-	// 	fmt.Println(bitMapMsg)
-	// 	conn.Write(bitMapMsg)
-
 	bitMapBuf = bitMapBuf[0:numRecved]
 	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4]) - 1
 	bitMapRecvProtocol := int(bitMapBuf[4])
@@ -206,7 +194,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
 
 	// 2) SEND INTERESTED MSG
-
 	interestMsg := createInterestMsg()
 	conn.Write(interestMsg)
 	fmt.Println("sending interested msg to peer ...")
