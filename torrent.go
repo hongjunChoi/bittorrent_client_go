@@ -9,7 +9,8 @@ type Torrent struct {
 	FileName  string
 	PeerList  []*Peer
 	InfoHash  string
-	NumPieces int64
+	NumPieces int
+	PieceSize int64
 }
 
 func (t *Torrent) initBitMap() {

@@ -53,7 +53,8 @@ func (c *Client) addTorrent(filename string) {
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 
 	torrent := new(Torrent)
-	torrent.NumPieces = metaInfo.Info.PieceLength
+	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
+	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.initBitMap()
 
 	trackerUrl := metaInfo.Announce
@@ -82,23 +83,44 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	}
 	conn := *peer.Connection
 
+	// 1) SEND , RECV BITMAP MSG
 	bitMapMsg := createBitMapMsg(torrent)
 	conn.Write(bitMapMsg)
 
 	bitMapBuf := make([]byte, 256)
-	_, err := conn.Read(bitMapBuf)
+	numRecved, err := conn.Read(bitMapBuf)
 
 	if err != nil && err != io.EOF {
 		fmt.Println("read error:", err)
 		return
 	}
 
+	bitMapBuf = bitMapBuf[0:numRecved]
 	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
 	bitMapRecvProtocol := int(bitMapBuf[4])
-	fmt.Println(bitMapBuf)
-	fmt.Println("bitfeild message complete...", bitMapRecvLen, bitMapRecvProtocol)
 
-	//TODO: READ INCOMING MSG FROM PEER AND ACT ACCORDINGLY
+	fmt.Println("RECVED bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
+	fmt.Println(bitMapBuf[5:bitMapRecvLen])
+
+	// 2) SEND , RECV INTERESTED MSG
+	interestMsg := createInterestMsg()
+	conn.Write(interestMsg)
+	fmt.Println("sending interested msg to peer ...")
+	fmt.Println(interestMsg)
+
+	interestBuf := make([]byte, 256) // big buffer
+	numRecved, err = conn.Read(interestBuf)
+	interestBuf = interestBuf[0:numRecved]
+
+	if err != nil && err != io.EOF {
+		fmt.Println("=======   read error:", err)
+		return
+	}
+
+	fmt.Println("recving response for our interested msg..")
+	fmt.Println(interestBuf)
+
+	//3) download
 	for {
 		buf := make([]byte, 256)
 		_, err := conn.Read(buf)
@@ -236,6 +258,24 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
 	return true
+}
+
+func createInterestMsg() []byte {
+	data := make([]byte, 0)
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(1))
+	data = append(data, tmp...)
+	data = append(data, uint8(2))
+	return data
+}
+
+func createUnChokeMsg() []byte {
+	data := make([]byte, 0)
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(1))
+	data = append(data, tmp...)
+	data = append(data, uint8(1))
+	return data
 }
 
 func createBitMapMsg(t *Torrent) []byte {
