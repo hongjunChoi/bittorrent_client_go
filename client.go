@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 const (
@@ -112,13 +113,33 @@ func (c *Client) addTorrent(filename string) {
 
 }
 
+func (p *Peer) sendKeepAlive() {
+	conn := *p.Connection
+	conn.Write(make([]byte, 0))
+}
+
+//sends KEEP ALIVE to each peer periodically
+func keepPeerListAlive(torrent *Torrent) {
+	for {
+		for _, p := range torrent.PeerList {
+			p.sendKeepAlive()
+		}
+		time.Sleep(120 * time.Second)
+	}
+}
+
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	//IF handshake filed.
 	if !c.connectToPeer(peer, torrent) {
 		//TODO: delete that peer struct pointer from torrent
+		deleteIndex := getPeerIndex(torrent, peer)
+		torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
 		fmt.Println("hand shake failed...")
 		return
 	}
+
+	go keepPeerListAlive(torrent)
+
 	conn := *peer.Connection
 
 	// 1) SEND , RECV BITMAP MSG
