@@ -24,40 +24,47 @@ type Peer struct {
 	Connection       *net.Conn
 }
 
-type Torrent struct {
-	BitMap   []byte
-	FileName string
-}
-
 type Client struct {
-	Id    string  // self peer id
-	Peers []*Peer //MAP of remote peer id : peer data
+	Id          string  // self peer id
+	Peers       []*Peer //MAP of remote peer id : peer data
+	TorrentList []*Torrent
 }
 
 func main() {
+
+	client := createClient()
+	client.addTorrent("data/hamlet.torrent")
+
+	return
+}
+
+func createClient() *Client {
+	client := new(Client)
+	client.Id = url.QueryEscape(generatePeerId())
+	return client
+}
+
+func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
-	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
+	metaInfo.ReadTorrentMetaInfoFile(filename)
+
 	torrent := new(Torrent)
 	torrent.initBitMap(metaInfo.Info.PieceLength)
 	trackerUrl := metaInfo.Announce
-	fmt.Println(metaInfo.Info.PieceLength)
+
 	data := parseMetaInfo(metaInfo)
-
-	peerId := url.QueryEscape(generatePeerId())
-	data["peer_id"] = peerId
-
-	fmt.Println(len(peerId))
+	data["peer_id"] = c.Id
 	peerList := get_peer_list(trackerUrl, data)
+	torrent.PeerList = peerList
+	torrent.InfoHash = metaInfo.InfoHash
 
-	client := new(Client)
-	client.Peers = peerList
-	client.Id = peerId
+	c.TorrentList = append(c.TorrentList, torrent)
 
+	//TODO: perhaps make this async or move to other func
 	for _, peer := range peerList {
-		client.connectToPeer(peer, metaInfo.InfoHash)
+		c.connectToPeer(peer, torrent, metaInfo.InfoHash)
 	}
 
-	return
 }
 
 //TODO: COMPLETE THIS PART
@@ -73,7 +80,6 @@ func parseMetaInfo(info *MetaInfo) map[string]string {
 	// data["no_peer_id"]
 	// data["event"]
 	// a := [1]map[string]string{data}
-	// fmt.Print(a.)
 
 	return data
 }
@@ -136,7 +142,7 @@ func createTrackerQuery(baseUrl string, data map[string]string) string {
 	return url
 }
 
-func (c *Client) connectToPeer(peer *Peer, infohash string) {
+func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
 	peerIP := peer.RemotePeerIP
 	peerPortNum := peer.RemotePeerPort
 
