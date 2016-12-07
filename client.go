@@ -24,40 +24,56 @@ type Peer struct {
 	Connection       *net.Conn
 }
 
-type Torrent struct {
-	BitMap   []byte
-	FileName string
-}
-
 type Client struct {
-	Id    string  // self peer id
+	Id string // self peer id
+
 	Peers []*Peer //MAP of remote peer id : peer data
 }
 
 func main() {
+
+	client := createClient()
+
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
+
 	torrent := new(Torrent)
 	torrent.initBitMap(metaInfo.Info.PieceLength)
 	trackerUrl := metaInfo.Announce
-	fmt.Println(metaInfo.Info.PieceLength)
+
 	data := parseMetaInfo(metaInfo)
+	data["peer_id"] = client.Id
 
-	peerId := url.QueryEscape(generatePeerId())
-	data["peer_id"] = peerId
-
-	fmt.Println(len(peerId))
 	peerList := get_peer_list(trackerUrl, data)
 
-	client := new(Client)
 	client.Peers = peerList
-	client.Id = peerId
 
 	for _, peer := range peerList {
 		client.connectToPeer(peer, metaInfo.InfoHash)
 	}
 
 	return
+}
+
+func createClient() *Client {
+	client := new(Client)
+	client.Id = url.QueryEscape(generatePeerId())
+	return client
+}
+
+func (c *Client) addTorrent(filename string) {
+	metaInfo := new(MetaInfo)
+	metaInfo.ReadTorrentMetaInfoFile(filename)
+
+	torrent := new(Torrent)
+	torrent.initBitMap(metaInfo.Info.PieceLength)
+	trackerUrl := metaInfo.Announce
+
+	data := parseMetaInfo(metaInfo)
+	data["peer_id"] = client.Id
+	peerList := get_peer_list(trackerUrl, data)
+	torrent.PeerList = peerList
+
 }
 
 //TODO: COMPLETE THIS PART
@@ -73,7 +89,6 @@ func parseMetaInfo(info *MetaInfo) map[string]string {
 	// data["no_peer_id"]
 	// data["event"]
 	// a := [1]map[string]string{data}
-	// fmt.Print(a.)
 
 	return data
 }
