@@ -5,12 +5,13 @@ import (
 )
 
 type Torrent struct {
-	BitMap    []byte
-	FileName  string
-	PeerList  []*Peer
-	InfoHash  string
-	NumPieces int
-	PieceSize int64
+	BlockOffsetMap map[int]int64 //for each piece show unti where data is already downloaded (offset in bytes)
+	BitMap         []byte        //map that shows whether piece at index is downloaded or not
+	FileName       string
+	PeerList       []*Peer
+	InfoHash       string
+	NumPieces      int
+	PieceSize      int64
 }
 
 func (t *Torrent) initBitMap() {
@@ -33,7 +34,9 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 }
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
-
+	fmt.Println("==== handle Unchoke =====")
+	data := createRequestMsg()
+	(*peer.Connection).Write(data)
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -57,7 +60,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
-
+	
 }
 
 func (c *Client) handleCancel(peer *Peer, torrent *Torrent, payload []byte) {

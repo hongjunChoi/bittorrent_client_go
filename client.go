@@ -27,6 +27,7 @@ const (
 )
 
 type Peer struct {
+	RemoteBitMap     []byte
 	SelfChoking      bool
 	SelfInterested   bool
 	RemoteChoking    bool
@@ -47,7 +48,7 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/trial4.torrent")
+	client.addTorrent("data/trial3.torrent")
 
 	//TODO: cli here
 	for {
@@ -80,14 +81,18 @@ func (c *Client) createStateFunctionMap() {
 	c.FunctionMap = functionMap
 }
 
-// func (c *Client) handleUnchod
-
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
+	torrent.BlockOffsetMap = make(map[int]int64)
+
+	for i := 0; i < torrent.NumPieces; i++ {
+		torrent.BlockOffsetMap[i] = 0
+	}
+
 	torrent.initBitMap()
 
 	trackerUrl := metaInfo.Announce
@@ -101,7 +106,6 @@ func (c *Client) addTorrent(filename string) {
 	c.TorrentList = append(c.TorrentList, torrent)
 
 	//TODO: perhaps make this async or move to other func
-	fmt.Println(len(peerList))
 	for _, peer := range peerList {
 		go c.handlePeerConnection(peer, torrent)
 	}
@@ -152,7 +156,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	fmt.Println("waiting for  response after sending our interested msg..")
 
 	for {
-		buf := make([]byte, 256)
+		fmt.Println("waiting ... ")
+		buf := make([]byte, 2048)
 		numRecved, err = conn.Read(buf)
 
 		if err != nil && err != io.EOF {
@@ -318,7 +323,8 @@ func createRequestMsg() []byte {
 	data = append(data, tmp...)
 	binary.BigEndian.PutUint32(tmp, uint32(0))
 	data = append(data, tmp...)
-	binary.BigEndian.PutUint32(tmp, uint32(10000000))
+	binary.BigEndian.PutUint32(tmp, uint32(1024))
+	data = append(data, tmp...)
 	fmt.Println(data)
 	return data
 }
