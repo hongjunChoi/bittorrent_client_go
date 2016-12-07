@@ -47,7 +47,7 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/trial3.torrent")
+	client.addTorrent("data/trial4.torrent")
 
 	//TODO: cli here
 	for {
@@ -150,6 +150,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			fmt.Println("read error from peer..  :", err)
 			return
 		}
+
+		fmt.Println("recved ..  ", buf[0:numRecved])
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 {
