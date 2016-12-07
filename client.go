@@ -85,22 +85,20 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	bitMapMsg := createBitMapMsg(torrent)
 	conn.Write(bitMapMsg)
 
-	bitMapBuf := make([]byte, 256) // big buffer
-
+	bitMapBuf := make([]byte, 256)
 	_, err := conn.Read(bitMapBuf)
 
 	if err != nil && err != io.EOF {
 		fmt.Println("read error:", err)
-		return 
+		return
 	}
 
 	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
 	bitMapRecvProtocol := int(bitMapBuf[4])
 	fmt.Println(bitMapBuf)
 	fmt.Println("bitfeild message complete...", bitMapRecvLen, bitMapRecvProtocol)
+
 	//TODO: READ INCOMING MSG FROM PEER AND ACT ACCORDINGLY
-
-
 	for {
 		buf := make([]byte, 256)
 		_, err := conn.Read(buf)
@@ -238,16 +236,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
 	return true
-	// peer.Connection = &conn
 }
-
-// func (c *Client) createBitMapMsg() []byte {
-// 	//torrent - bitmap
-// 	//torrent - peers
-// 	// peer --> torrent --> bitmap
-
-// 	// peer (torrent1, torrent2)
-// }
 
 func createBitMapMsg(t *Torrent) []byte {
 	data := make([]byte, 0)
