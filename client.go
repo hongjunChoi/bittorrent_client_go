@@ -85,12 +85,15 @@ func (c *Client) createStateFunctionMap() {
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
-	// fmt.Println()
+	fmt.Println("====== torrent file info =========")
+	fmt.Println(metaInfo.Info)
+	fmt.Println("===================================")
 
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
+	torrent.PeerWorkMap = make(map[*Peer]([]*Piece))
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		torrent.BlockOffsetMap[uint32(i)] = 0
@@ -105,13 +108,33 @@ func (c *Client) addTorrent(filename string) {
 	peerList := get_peer_list(trackerUrl, data)
 	torrent.PeerList = peerList
 	torrent.InfoHash = metaInfo.InfoHash
-
 	c.TorrentList = append(c.TorrentList, torrent)
+
+	c.peerListHandShake(torrent, peerList)
+
+	//TODO : DIVIDE WORK AMONG PEERS HERE
+	for index, piece := range torrent.PieceMap {
+
+	}
 
 	for _, peer := range peerList {
 		go c.handlePeerConnection(peer, torrent)
 	}
 
+}
+
+func (c *Client) peerListHandShake(torrent *Torrent, peerList []*Peer) {
+	for _, peer := range peerList {
+		//IF handshake filed.
+		if !c.connectToPeer(peer, torrent) {
+			//delete that peer struct pointer from torrent
+			deleteIndex := getPeerIndex(torrent, peer)
+			torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
+			fmt.Println("hand shake failed...")
+			return
+		}
+	}
+	go keepPeerListAlive(torrent)
 }
 
 func (p *Peer) sendKeepAlive() {
@@ -130,17 +153,6 @@ func keepPeerListAlive(torrent *Torrent) {
 }
 
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
-	//IF handshake filed.
-	if !c.connectToPeer(peer, torrent) {
-		//TODO: delete that peer struct pointer from torrent
-		deleteIndex := getPeerIndex(torrent, peer)
-		torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
-		fmt.Println("hand shake failed...")
-		return
-	}
-
-	go keepPeerListAlive(torrent)
-
 	conn := *peer.Connection
 
 	// 1) SEND , RECV BITMAP MSG

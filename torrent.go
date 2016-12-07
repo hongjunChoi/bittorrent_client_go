@@ -13,6 +13,7 @@ type Torrent struct {
 	InfoHash       string
 	NumPieces      int
 	PieceSize      int64
+	PeerWorkMap    map[*Peer]([]*Piece)
 }
 
 func (t *Torrent) initBitMap() {
