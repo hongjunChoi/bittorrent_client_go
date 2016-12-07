@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 const (
@@ -84,13 +85,14 @@ func (c *Client) createStateFunctionMap() {
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
+
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
-	torrent.BlockOffsetMap = make(map[int]int64)
+	torrent.BlockOffsetMap = make(map[uint32]int64)
 
 	for i := 0; i < torrent.NumPieces; i++ {
-		torrent.BlockOffsetMap[i] = 0
+		torrent.BlockOffsetMap[uint32(i)] = 0
 	}
 
 	torrent.initBitMap()
@@ -112,13 +114,33 @@ func (c *Client) addTorrent(filename string) {
 
 }
 
+func (p *Peer) sendKeepAlive() {
+	conn := *p.Connection
+	conn.Write(make([]byte, 0))
+}
+
+//sends KEEP ALIVE to each peer periodically
+func keepPeerListAlive(torrent *Torrent) {
+	for {
+		for _, p := range torrent.PeerList {
+			p.sendKeepAlive()
+		}
+		time.Sleep(120 * time.Second)
+	}
+}
+
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	//IF handshake filed.
 	if !c.connectToPeer(peer, torrent) {
 		//TODO: delete that peer struct pointer from torrent
+		deleteIndex := getPeerIndex(torrent, peer)
+		torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
 		fmt.Println("hand shake failed...")
 		return
 	}
+
+	go keepPeerListAlive(torrent)
+
 	conn := *peer.Connection
 
 	bitMapBuf := make([]byte, 256)
@@ -164,8 +186,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			fmt.Println("read error from peer..  :", err)
 			return
 		}
-
-		fmt.Println("recved ..  ", buf[0:numRecved])
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 {
@@ -228,8 +248,12 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 		return make([]*Peer, 0)
 	}
 	peerDict, _ := peerDictData.(map[string]interface{})
-
 	peers := []byte(peerDict["peers"].(string))
+
+	fmt.Println("==== PEER DATA FROM TRACKER =====")
+	fmt.Println(peers)
+	fmt.Println("==========")
+
 	peerData := make([]*Peer, len(peers)/6)
 
 	for i := 0; i < len(peers)/6; i++ {
