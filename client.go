@@ -35,7 +35,11 @@ func main() {
 	client := createClient()
 	client.addTorrent("data/hamlet.torrent")
 
-	return
+	//TODO: cli here
+	for {
+
+	}
+
 }
 
 func createClient() *Client {
@@ -62,7 +66,31 @@ func (c *Client) addTorrent(filename string) {
 
 	//TODO: perhaps make this async or move to other func
 	for _, peer := range peerList {
-		c.connectToPeer(peer, torrent, metaInfo.InfoHash)
+		go c.handlePeerConnection(peer, torrent)
+	}
+
+}
+
+func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
+	//IF handshake filed.
+	if !c.connectToPeer(peer, torrent) {
+		//TODO: delete that peer struct pointer from torrent
+		fmt.Println("hand shake failed...")
+		return
+	}
+	conn := *peer.Connection
+
+	//TODO: READ INCOMING MSG FROM PEER AND ACT ACCORDINGLY
+	for {
+		buf := make([]byte, 256)
+		_, err := conn.Read(buf)
+
+		if err != nil && err != io.EOF {
+			fmt.Println("read error from peer..  :", err)
+			return
+		}
+
+		//ACT ACCORDINGLY
 	}
 
 }
@@ -100,9 +128,11 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	r := bytes.NewReader(body)
-	peerDictData, er := bencode.Decode(r)
-	if er != nil {
-		fmt.Println(er)
+	peerDictData, decodeErr := bencode.Decode(r)
+	if decodeErr != nil {
+		fmt.Println("=== ERROR IN DECODING BENCODE FROM TRACKER ======")
+		fmt.Println(decodeErr)
+		return make([]*Peer, 0)
 	}
 	peerDict, _ := peerDictData.(map[string]interface{})
 
@@ -127,7 +157,6 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 }
 
 func createTrackerQuery(baseUrl string, data map[string]string) string {
-	// params := url.Values{}
 	url := baseUrl + "?"
 	count := 0
 
@@ -142,28 +171,32 @@ func createTrackerQuery(baseUrl string, data map[string]string) string {
 	return url
 }
 
-func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
+// Conducts HANDSHAKE WITH PEER AND STARTS CONNECTION
+// RETURN FALSE IF HANDSHAKE FAILED ...
+func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	peerIP := peer.RemotePeerIP
 	peerPortNum := peer.RemotePeerPort
+	infohash := torrent.InfoHash
+
+	fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
 
 	conn, err := net.Dial("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)))
 	if err != nil {
-		fmt.Println("ERROR IN PEER HANDSHAKE")
+		fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	// Client transmit first message to server
 	firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
 	conn.Write(firstMsg)
 
-	buf := make([]byte, 256) // big buffer
-
+	buf := make([]byte, 256)
 	_, err = conn.Read(buf)
 
 	if err != nil && err != io.EOF {
 		fmt.Println("read error:", err)
-		return
+		return false
 	}
 
 	recvMsgLen := uint8(buf[0])
@@ -179,21 +212,14 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
 	if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
 		fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
 		conn.Close()
-		return
+		return false
 	}
 
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
+	return true
 
 }
-
-// func (c *Client) createBitMapMsg() []byte {
-// 	//torrent - bitmap
-// 	//torrent - peers
-// 	// peer --> torrent --> bitmap
-
-// 	// peer (torrent1, torrent2)
-// }
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
 
