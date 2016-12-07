@@ -368,7 +368,9 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
-	data := createRequestMsg(b., byteOffset)
+	data := createRequestMsg(b.PieceIndex, b.Offset)
+	(*p.Connection).Write(data)
+	p.BlockQueue.Enqueue(b)
 }
 
 func createRequestMsg(pieceIndex int, byteOffset int) []byte {

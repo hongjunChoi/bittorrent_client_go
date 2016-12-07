@@ -35,8 +35,11 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
-	data := createRequestMsg()
-	(*peer.Connection).Write(data)
+	for i := 0; i < 10; i++ {
+		b := torrent.PeerWorkMap[peer][i]
+		peer.sendRequestMessage(b)
+	}
+	peer.CurrentBlock = 10
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -117,13 +120,13 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	}
 
 	// REMOVE BLOCK FROM BLOCk QUEUE
-	b := peer.BlockQueue.Pop()
+	b := peer.BlockQueue.Dequeue()
 	if uint32(b.(Block).Offset) != byteOffset {
 		fmt.Println("======= WEIRD POPING FROM BLOCK QUEUE =========")
 	}
 	//GET NEW BLOCK TO REQUEST
 	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
-
+	peer.CurrentBlock += 1
 	peer.sendRequestMessage(toRequest)
 	//ADD TO C
 
