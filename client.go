@@ -25,8 +25,8 @@ type Peer struct {
 }
 
 type Client struct {
-	Id    string          // self peer id
-	Peers map[string]Peer //MAP of remote peer id : peer data
+	Id    string  // self peer id
+	Peers []*Peer //MAP of remote peer id : peer data
 }
 
 func main() {
@@ -41,7 +41,10 @@ func main() {
 
 	fmt.Println(len(peerId))
 	peerList := get_peer_list(trackerUrl, data)
-	fmt.Println(peerList)
+
+	client := new(Client)
+	client.Peers = peerList
+	client.Id = peerId
 
 	return
 }
@@ -109,6 +112,22 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 	return peerData
 }
 
+func createTrackerQuery(baseUrl string, data map[string]string) string {
+	// params := url.Values{}
+	url := baseUrl + "?"
+	count := 0
+
+	for k, v := range data {
+		url = url + k + "=" + v
+
+		if count < len(data)-1 {
+			url = url + "&"
+		}
+		count += 1
+	}
+	return url
+}
+
 func startTCPConnection(ip string, port string) {
 
 	conn, _ := net.Dial("tcp", ip+":"+port)
@@ -125,28 +144,7 @@ func startTCPConnection(ip string, port string) {
 	}
 }
 
-func createTrackerQuery(baseUrl string, data map[string]string) string {
-	// params := url.Values{}
-	url := baseUrl + "?"
-	count := 0
-
-	for k, v := range data {
-
-		url = url + k + "=" + v
-
-		if count < len(data)-1 {
-			url = url + "&"
-
-		}
-
-		count += 1
-
-	}
-
-	return url
-}
-
-func (c *Client) connectToPeer(peer *Peer) {
+func (c *Client) connectToPeer(peer *Peer, infohash string) {
 	peerIP := peer.RemotePeerIP
 	peerPortNum := peer.RremotePeerPort
 
@@ -157,8 +155,9 @@ func (c *Client) connectToPeer(peer *Peer) {
 	}
 
 	// Client transmit first message to server
-	firstMsg := ""
-	fmt.Fprintf(conn, firstMsg)
+	firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
+	conn.Write(firstMsg)
+	// fmt.Fprintf(conn, firstMsg)
 
 	// for {
 	// 	// read in input from stdin
@@ -174,8 +173,23 @@ func (c *Client) connectToPeer(peer *Peer) {
 }
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
-	msgLen := uint32(len(msg))
-	lenBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBytes, msgLen)
-	return make([]byte, 0)
+
+	// data := make([]byte, 49+msgLen)
+	// data[0] = msgLen
+	// data[1 : 1+msgLen] = []byte(msg)
+
+	msgLen := uint8(len(msg))
+	zeros := make([]byte, 8)
+
+	data := make([]byte, 0)
+	data = append(data, msgLen)
+	data = append(data, []byte(msg)...)
+	data = append(data, zeros...)
+	data = append(data, []byte(infohash)...)
+	data = append(data, []byte(peerId)...)
+
+	// data[1+msgLen : 9+msgLen] = zeros
+	// data[9+msgLen : 29+msgLen] = []byte(infohash)
+	// data[29+msgLen : 49+msgLen] = []byte(peerId)
+	return data
 }
