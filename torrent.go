@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 type Torrent struct {
@@ -14,16 +16,11 @@ type Torrent struct {
 	NumPieces      int
 	PieceSize      int64
 	PieceMap       map[uint32]Piece
+	BlockSize      uint32
 }
 
 func (t *Torrent) initBitMap() {
-	length := int(t.NumPieces / 8)
-	if t.NumPieces%8 > 0 {
-		length += 1
-	}
-	length = 51
-	t.BitMap = make([]byte, length)
-	fmt.Println(t.BitMap[0])
+	t.BitMap = createZerosBitMap(t.NumPieces)
 }
 
 func setBit(n int, pos uint) int {
@@ -60,17 +57,64 @@ func (c *Client) handleBitfield(peer *Peer, torrent *Torrent, payload []byte) {
 func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
+func createOnesBitMap(bits int) []byte {
+	length := int(bits / 8)
+	trailing := bits % 8
+	if trailing > 0 {
+		length += 1
+	}
+	bitMap := make([]byte, length)
+	for i := 0; i < length; i++ {
+		bitMap[i] = byte(255)
+	}
 
+	if trailing > 0 {
+		pow := 7
+		byteVal := 0
+		for i := 0; i < trailing; i++ {
+			byteVal += int(math.Pow(2, float64(pow)))
+		}
+		bitMap[length-1] = byte(byteVal)
+	}
+	fmt.Println(bitMap)
+	return bitMap
+}
+
+func createZerosBitMap(bits int) []byte {
+	length := int(bits / 8)
+	trailing := bits % 8
+	if trailing > 0 {
+		length += 1
+	}
+	bitMap := make([]byte, length)
+	return bitMap
+}
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
 
-	//UPDATE THE OFFSET BYTE BY AMOUNT OF DATA RECVED
-	// torrent.BlockOffsetMap[int(pieceIndex] = int64(byteOffset) + int64(len(data))
+	piece := torrent.PieceMap[pieceIndex]
+
+	//GET CORRESPONDING BLOCK AND SET DATA
 	block := torrent.PieceMap[pieceIndex].BlockMap[byteOffset]
 	block.Data = data
+
+	//UPDATE BITMAP OF PIECE
+	bitMapByteIndx := int(byteOffset / torrent.BlockSize / 8)
+	bitMapBitIndx := int(byteOffset/torrent.BlockSize) % 8
+	byteValue := piece.BitMap[bitMapBitIndx]
+	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
+	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
+
+	//CHECK IF PIECE IS FULL
+	completeMap := createOnesBitMap(piece.NumBlocks)
+	if bytes.Compare(completeMap, piece.BitMap) == 0 {
+		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
+	}
+
+	//ADD TO C
 
 	//UPDATE THE BITMAP IFF THE ENTIRE PIECE HAS BEEN DOWNLOADED
 
