@@ -2,15 +2,14 @@ package main
 
 import (
 	bencode "./bencode-go"
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 )
 
@@ -21,7 +20,8 @@ type Peer struct {
 	RemoteInterested bool
 	RemotePeerId     string
 	RemotePeerIP     string
-	RremotePeerPort  uint16
+	RemotePeerPort   uint16
+	Connection       *net.Conn
 }
 
 type Client struct {
@@ -46,15 +46,15 @@ func main() {
 	client.Peers = peerList
 	client.Id = peerId
 
+	for _, peer := range peerList {
+		client.connectToPeer(peer, metaInfo.InfoHash)
+	}
+
 	return
 }
 
 //TODO: COMPLETE THIS PART
 func parseMetaInfo(info *MetaInfo) map[string]string {
-	fmt.Println("===== info hash =====")
-	fmt.Println(info.InfoHash)
-	fmt.Println(url.QueryEscape(info.InfoHash))
-	fmt.Println("=======")
 
 	data := make(map[string]string)
 	data["info_hash"] = url.QueryEscape(info.InfoHash)
@@ -104,7 +104,8 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 		peer := new(Peer)
 
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
-		peer.RremotePeerPort = binary.BigEndian.Uint16(port)
+		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
+		peer.RemotePeerId = ""
 
 		peerData[i] = peer
 	}
@@ -128,55 +129,52 @@ func createTrackerQuery(baseUrl string, data map[string]string) string {
 	return url
 }
 
-func startTCPConnection(ip string, port string) {
-
-	conn, _ := net.Dial("tcp", ip+":"+port)
-	for {
-		// read in input from stdin
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Text to send: ")
-		text, _ := reader.ReadString('\n')
-		// send to socket
-		fmt.Fprintf(conn, text+"\n")
-		// listen for reply
-		message, _ := bufio.NewReader(conn).ReadString('\n')
-		fmt.Print("Message from server: " + message)
-	}
-}
-
 func (c *Client) connectToPeer(peer *Peer, infohash string) {
 	peerIP := peer.RemotePeerIP
-	peerPortNum := peer.RremotePeerPort
+	peerPortNum := peer.RemotePeerPort
 
-	conn, err := net.Dial("tcp", peerIP+strconv.Itoa(int(peerPortNum)))
+	conn, err := net.Dial("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)))
 	if err != nil {
 		fmt.Println("ERROR IN PEER HANDSHAKE")
+		fmt.Println(err)
 		return
 	}
 
 	// Client transmit first message to server
 	firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
 	conn.Write(firstMsg)
-	// fmt.Fprintf(conn, firstMsg)
 
-	// for {
-	// 	// read in input from stdin
-	// 	reader := bufio.NewReader(os.Stdin)
-	// 	fmt.Print("Text to send: ")
-	// 	text, _ := reader.ReadString('\n')
-	// 	// send to socket
+	buf := make([]byte, 256) // big buffer
 
-	// 	// listen for reply
-	// 	message, _ := bufio.NewReader(conn).ReadString('\n')
-	// 	fmt.Print("Message from server: " + message)
-	// }
+	_, err = conn.Read(buf)
+
+	if err != nil && err != io.EOF {
+		fmt.Println("read error:", err)
+		return
+	}
+
+	recvMsgLen := uint8(buf[0])
+	recvMsg := string(buf[1 : 1+recvMsgLen])
+	recvInfoHash := string(buf[9+recvMsgLen : 29+recvMsgLen])
+	recvPeerId := string(buf[29+recvMsgLen : 49+recvMsgLen])
+
+	//CHECK for inconsistent info hash  or peer id
+	if peer.RemotePeerId == "" {
+		peer.RemotePeerId = recvPeerId
+	}
+
+	if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
+		fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
+		conn.Close()
+		return
+	}
+
+	fmt.Println("handshake complete...")
+	peer.Connection = &conn
+
 }
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
-
-	// data := make([]byte, 49+msgLen)
-	// data[0] = msgLen
-	// data[1 : 1+msgLen] = []byte(msg)
 
 	msgLen := uint8(len(msg))
 	zeros := make([]byte, 8)
@@ -188,8 +186,5 @@ func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
 	data = append(data, []byte(infohash)...)
 	data = append(data, []byte(peerId)...)
 
-	// data[1+msgLen : 9+msgLen] = zeros
-	// data[9+msgLen : 29+msgLen] = []byte(infohash)
-	// data[29+msgLen : 49+msgLen] = []byte(peerId)
 	return data
 }
