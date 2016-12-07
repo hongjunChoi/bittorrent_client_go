@@ -49,7 +49,9 @@ func (c *Client) addTorrent(filename string) {
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 
 	torrent := new(Torrent)
-	torrent.initBitMap(metaInfo.Info.PieceLength)
+	torrent.NumPieces = metaInfo.Info.PieceLength
+	torrent.initBitMap()
+
 	trackerUrl := metaInfo.Announce
 
 	data := parseMetaInfo(metaInfo)
@@ -185,8 +187,24 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
 
-	// bitMapMsg := createBitMapMsg(to)
+	bitMapMsg := createBitMapMsg(torrent)
+	conn.Write(bitMapMsg)
 
+	bitMapBuf := make([]byte, 256) // big buffer
+
+	_, err = conn.Read(bitMapBuf)
+
+	if err != nil && err != io.EOF {
+		fmt.Println("read error:", err)
+		return
+	}
+	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
+	bitMapRecvProtocol := int(bitMapBuf[4])
+	// recvInfoHash := string(buf[9+recvMsgLen : 29+recvMsgLen])
+	// recvPeerId := string(buf[29+recvMsgLen : 49+recvMsgLen])
+	fmt.Println(bitMapBuf)
+	fmt.Println("bitfeild message complete...", bitMapRecvLen, bitMapRecvProtocol)
+	// peer.Connection = &conn
 }
 
 // func (c *Client) createBitMapMsg() []byte {
@@ -197,11 +215,11 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
 // 	// peer (torrent1, torrent2)
 // }
 
-func createBitMapMsg(numPieces int64, bitMap []byte) []byte {
+func createBitMapMsg(t *Torrent) []byte {
 	data := make([]byte, 0)
-	data = append(data, uint8(numPieces))
+	data = append(data, uint8(t.NumPieces))
 	data = append(data, uint8(5))
-	data = append(data, bitMap...)
+	data = append(data, t.BitMap...)
 
 	return data
 }

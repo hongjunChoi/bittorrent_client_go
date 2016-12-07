@@ -5,15 +5,16 @@ import (
 )
 
 type Torrent struct {
-	BitMap   []byte
-	FileName string
-	PeerList []*Peer
-	InfoHash string
+	BitMap    []byte
+	FileName  string
+	PeerList  []*Peer
+	InfoHash  string
+	NumPieces int64
 }
 
-func (t *Torrent) initBitMap(u int64) {
-	length := int(u / 8)
-	if u%8 > 0 {
+func (t *Torrent) initBitMap() {
+	length := int(t.NumPieces / 8)
+	if t.NumPieces%8 > 0 {
 		length += 1
 	}
 	t.BitMap = make([]byte, length)
