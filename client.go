@@ -25,32 +25,15 @@ type Peer struct {
 }
 
 type Client struct {
-	Id string // self peer id
-
-	Peers []*Peer //MAP of remote peer id : peer data
+	Id          string  // self peer id
+	Peers       []*Peer //MAP of remote peer id : peer data
+	TorrentList []*Torrent
 }
 
 func main() {
 
 	client := createClient()
-
-	metaInfo := new(MetaInfo)
-	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
-
-	torrent := new(Torrent)
-	torrent.initBitMap(metaInfo.Info.PieceLength)
-	trackerUrl := metaInfo.Announce
-
-	data := parseMetaInfo(metaInfo)
-	data["peer_id"] = client.Id
-
-	peerList := get_peer_list(trackerUrl, data)
-
-	client.Peers = peerList
-
-	for _, peer := range peerList {
-		client.connectToPeer(peer, metaInfo.InfoHash)
-	}
+	client.addTorrent("data/hamlet.torrent")
 
 	return
 }
@@ -70,9 +53,17 @@ func (c *Client) addTorrent(filename string) {
 	trackerUrl := metaInfo.Announce
 
 	data := parseMetaInfo(metaInfo)
-	data["peer_id"] = client.Id
+	data["peer_id"] = c.Id
 	peerList := get_peer_list(trackerUrl, data)
 	torrent.PeerList = peerList
+	torrent.InfoHash = metaInfo.InfoHash
+
+	c.TorrentList = append(c.TorrentList, torrent)
+
+	//TODO: perhaps make this async or move to other func
+	for _, peer := range peerList {
+		c.connectToPeer(peer, torrent, metaInfo.InfoHash)
+	}
 
 }
 
@@ -151,7 +142,7 @@ func createTrackerQuery(baseUrl string, data map[string]string) string {
 	return url
 }
 
-func (c *Client) connectToPeer(peer *Peer, infohash string) {
+func (c *Client) connectToPeer(peer *Peer, torrent *Torrent, infohash string) {
 	peerIP := peer.RemotePeerIP
 	peerPortNum := peer.RemotePeerPort
 
