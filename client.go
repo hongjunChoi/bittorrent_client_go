@@ -51,8 +51,9 @@ func createClient() *Client {
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
-	torrent := new(Torrent)	
-	torrent.NumPieces = metaInfo.Info.PieceLength
+	torrent := new(Torrent)
+	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
+	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.initBitMap()
 
 	trackerUrl := metaInfo.Announce
@@ -82,37 +83,44 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	conn := *peer.Connection
 
 
-
-	bitMapBuf := make([]byte, 256) // big buffer
-
-	_, err := conn.Read(bitMapBuf)
+	bitMapBuf := make([]byte, 256)
+	numRecved, err := conn.Read(bitMapBuf)
 
 	if err != nil && err != io.EOF {
 		fmt.Println("read error:", err)
 		return
 	}
-	bitMapMsg := createBitMapMsg(torrent)
-	conn.Write(bitMapMsg)
 
-	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
-	bitMapRecvProtocol := int(bitMapBuf[4])
+
+	// bitMapBuf = bitMapBuf[0:numRecved]
+	// bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
+	// bitMapRecvProtocol := int(bitMapBuf[4])
+
 	fmt.Println(bitMapBuf)
-	fmt.Println("bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
-	//TODO: READ INCOMING MSG FROM PEER AND ACT ACCORDINGLY
+
+	fmt.Println("---sending bitmap buf")	
+	bitMapMsg := createBitMapMsg(torrent)
+	fmt.Println(bitMapMsg)
+	conn.Write(bitMapMsg)
 
 	interestMsg := createInterestMsg()
 	conn.Write(interestMsg)
+	fmt.Println("sending interested msg to peer ...")
 	fmt.Println(interestMsg)
-	interestBuf := make([]byte, 256) // big buffer
-	fmt.Println("----sending interest")
-	_, err = conn.Read(interestBuf)
 
-	fmt.Println("--rec")
+	interestBuf := make([]byte, 256) // big buffer
+	numRecved, err = conn.Read(interestBuf)
+	interestBuf = interestBuf[0:numRecved]
+
 	if err != nil && err != io.EOF {
-		fmt.Println("read error:", err)
+		fmt.Println("=======   read error:", err)
 		return
 	}
+
+	fmt.Println("recving response for our interested msg..")
 	fmt.Println(interestBuf)
+
+	//3) download
 	for {
 		buf := make([]byte, 256)
 		_, err := conn.Read(buf)
@@ -250,16 +258,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	fmt.Println("handshake complete...", recvMsg)
 	peer.Connection = &conn
 	return true
-	// peer.Connection = &conn
 }
-
-// func (c *Client) createBitMapMsg() []byte {
-// 	//torrent - bitmap
-// 	//torrent - peers
-// 	// peer --> torrent --> bitmap
-
-// 	// peer (torrent1, torrent2)
-// }
 
 func createInterestMsg() []byte {
 	data := make([]byte, 0)
