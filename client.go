@@ -24,6 +24,11 @@ type Peer struct {
 	RremotePeerPort  uint16
 }
 
+type Torrent struct {
+	BitMap   []byte
+	FileName string
+}
+
 type Client struct {
 	Id    string  // self peer id
 	Peers []*Peer //MAP of remote peer id : peer data
@@ -32,6 +37,8 @@ type Client struct {
 func main() {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile("data/hamlet.torrent")
+	torrent := new(Torrent)
+	torrent.initBitMap(metaInfo.Info.PieceLength)
 	trackerUrl := metaInfo.Announce
 	fmt.Println(metaInfo.Info.PieceLength)
 	data := parseMetaInfo(metaInfo)
@@ -170,6 +177,15 @@ func (c *Client) connectToPeer(peer *Peer, infohash string) {
 	// 	message, _ := bufio.NewReader(conn).ReadString('\n')
 	// 	fmt.Print("Message from server: " + message)
 	// }
+
+}
+
+func (c *Client) createBitMapMsg() []byte {
+	//torrent - bitmap
+	//torrent - peers
+	// peer --> torrent --> bitmap
+
+	// peer (torrent1, torrent2)
 }
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
