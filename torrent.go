@@ -17,6 +17,7 @@ func (t *Torrent) initBitMap() {
 	if t.NumPieces%8 > 0 {
 		length += 1
 	}
+	length = 51
 	t.BitMap = make([]byte, length)
 	fmt.Println(t.BitMap[0])
 }

@@ -51,8 +51,7 @@ func createClient() *Client {
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
-
-	torrent := new(Torrent)
+	torrent := new(Torrent)	
 	torrent.NumPieces = metaInfo.Info.PieceLength
 	torrent.initBitMap()
 
@@ -82,8 +81,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	}
 	conn := *peer.Connection
 
-	bitMapMsg := createBitMapMsg(torrent)
-	conn.Write(bitMapMsg)
+
 
 	bitMapBuf := make([]byte, 256) // big buffer
 
@@ -93,6 +91,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		fmt.Println("read error:", err)
 		return
 	}
+	bitMapMsg := createBitMapMsg(torrent)
+	conn.Write(bitMapMsg)
 
 	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
 	bitMapRecvProtocol := int(bitMapBuf[4])
@@ -100,7 +100,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	fmt.Println("bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
 	//TODO: READ INCOMING MSG FROM PEER AND ACT ACCORDINGLY
 
-	interestMsg := createUnChokeMsg()
+	interestMsg := createInterestMsg()
 	conn.Write(interestMsg)
 	fmt.Println(interestMsg)
 	interestBuf := make([]byte, 256) // big buffer
@@ -281,10 +281,11 @@ func createUnChokeMsg() []byte {
 
 func createBitMapMsg(t *Torrent) []byte {
 	data := make([]byte, 0)
-	data = append(data, uint8(t.NumPieces))
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(len(t.BitMap)+1))
+	data = append(data, tmp...)
 	data = append(data, uint8(5))
 	data = append(data, t.BitMap...)
-
 	return data
 }
 
