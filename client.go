@@ -13,6 +13,19 @@ import (
 	"strconv"
 )
 
+const (
+	CHOKE          = 0
+	UNCHOKE        = 1
+	INTERESTED     = 2
+	NOT_INTERESTED = 3
+	HAVE           = 4
+	BITFIELD       = 5
+	REQUEST        = 6
+	PIECE          = 7
+	CANCEL         = 8
+	PORT           = 9
+)
+
 type Peer struct {
 	SelfChoking      bool
 	SelfInterested   bool
@@ -28,6 +41,7 @@ type Client struct {
 	Id          string  // self peer id
 	Peers       []*Peer //MAP of remote peer id : peer data
 	TorrentList []*Torrent
+	FunctionMap map[int]func(*Peer, *Torrent)
 }
 
 func main() {
@@ -45,7 +59,25 @@ func main() {
 func createClient() *Client {
 	client := new(Client)
 	client.Id = url.QueryEscape(generatePeerId())
+	client.createStateFunctionMap()
 	return client
+}
+
+func (c *Client) createStateFunctionMap() {
+	functionMap := make(map[int]func(*Peer, *Torrent))
+
+	functionMap[CHOKE] = c.handleChoke
+	functionMap[UNCHOKE] = c.handleUnchoke
+	functionMap[INTERESTED] = c.handleInterested
+	functionMap[NOT_INTERESTED] = c.handleNotInterested
+	functionMap[HAVE] = c.handleHave
+	functionMap[BITFIELD] = c.handleBitfield
+	functionMap[REQUEST] = c.handleRequest
+	functionMap[PIECE] = c.handlePiece
+	functionMap[CANCEL] = c.handleCancel
+	functionMap[PORT] = c.handlePort
+
+	c.FunctionMap = functionMap
 }
 
 func (c *Client) addTorrent(filename string) {
@@ -133,8 +165,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			fmt.Println(payload)
 			fmt.Println(".......")
 
-			//TODO: STATE MACHINE HERE
-
+			// STATE MACHINE HERE
+			c.FunctionMap[int(recvId)](peer, torrent)
 		}
 	}
 
