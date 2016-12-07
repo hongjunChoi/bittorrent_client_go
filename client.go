@@ -180,13 +180,13 @@ func (c *Client) connectToPeer(peer *Peer, infohash string) {
 
 }
 
-func (c *Client) createBitMapMsg() []byte {
-	//torrent - bitmap
-	//torrent - peers
-	// peer --> torrent --> bitmap
+// func (c *Client) createBitMapMsg() []byte {
+// 	//torrent - bitmap
+// 	//torrent - peers
+// 	// peer --> torrent --> bitmap
 
-	// peer (torrent1, torrent2)
-}
+// 	// peer (torrent1, torrent2)
+// }
 
 func createHandShakeMsg(msg string, infohash string, peerId string) []byte {
 
