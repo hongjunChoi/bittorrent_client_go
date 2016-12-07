@@ -13,7 +13,8 @@ type Torrent struct {
 	InfoHash       string
 	NumPieces      int
 	PieceSize      int64
-	PeerWorkMap    map[*Peer]([]*Piece)
+	PeerWorkMap    map[*Peer]([]*Block)
+	PieceMap       map[uint32]*Piece
 }
 
 func (t *Torrent) initBitMap() {
@@ -21,6 +22,7 @@ func (t *Torrent) initBitMap() {
 	if t.NumPieces%8 > 0 {
 		length += 1
 	}
+	length = 51
 	t.BitMap = make([]byte, length)
 	fmt.Println(t.BitMap[0])
 }
@@ -35,7 +37,9 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 }
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
-
+	fmt.Println("==== handle Unchoke =====")
+	data := createRequestMsg()
+	(*peer.Connection).Write(data)
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -59,12 +63,15 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
+
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
 
 	//UPDATE THE OFFSET BYTE BY AMOUNT OF DATA RECVED
-	torrent.BlockOffsetMap[pieceIndex] = int64(byteOffset) + int64(len(data))
+	// torrent.BlockOffsetMap[int(pieceIndex] = int64(byteOffset) + int64(len(data))
+	block := torrent.PieceMap[pieceIndex].BlockMap[byteOffset]
+	block.Data = data
 
 	//UPDATE THE BITMAP IFF THE ENTIRE PIECE HAS BEEN DOWNLOADED
 

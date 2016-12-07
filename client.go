@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,6 +26,7 @@ const (
 	PIECE          = 7
 	CANCEL         = 8
 	PORT           = 9
+	BLOCKSIZE      = 1024
 )
 
 type Peer struct {
@@ -85,6 +87,7 @@ func (c *Client) createStateFunctionMap() {
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
+
 	fmt.Println("====== torrent file info =========")
 	fmt.Println(metaInfo.Info)
 	fmt.Println("===================================")
@@ -93,7 +96,7 @@ func (c *Client) addTorrent(filename string) {
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
-	torrent.PeerWorkMap = make(map[*Peer]([]*Piece))
+	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		torrent.BlockOffsetMap[uint32(i)] = 0
@@ -111,10 +114,32 @@ func (c *Client) addTorrent(filename string) {
 	c.TorrentList = append(c.TorrentList, torrent)
 
 	c.peerListHandShake(torrent, peerList)
+	count := 0
 
-	//TODO : DIVIDE WORK AMONG PEERS HERE
-	for index, piece := range torrent.PieceMap {
+	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
+	for i := 0; i < torrent.NumPieces; i++ {
+		piece := new(Piece)
+		piece.Index = i
+		numBlocks := int(math.Ceil(float64(torrent.PieceSize / BLOCKSIZE)))
+		piece.BitMap = make([]byte, int(math.Ceil(float64(numBlocks/8))))
 
+		for j := 0; j < numBlocks; j++ {
+			b := new(Block)
+			b.Offset = j * BLOCKSIZE
+			b.Data = make([]byte, BLOCKSIZE)
+
+			piece.BlockMap[uint32(b.Offset)] = b
+		}
+		torrent.PieceMap[uint32(i)] = piece
+	}
+
+	//DIVIDE WORK AMONG PEERS HERE
+	for _, piece := range torrent.PieceMap {
+		for _, block := range piece.BlockMap {
+			p := torrent.PeerList[(count % len(torrent.PeerList))]
+			torrent.PeerWorkMap[p] = append(torrent.PeerWorkMap[p], block)
+			count += 1
+		}
 	}
 
 	for _, peer := range peerList {
@@ -155,10 +180,6 @@ func keepPeerListAlive(torrent *Torrent) {
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	conn := *peer.Connection
 
-	// 1) SEND , RECV BITMAP MSG
-	bitMapMsg := createBitMapMsg(torrent)
-	conn.Write(bitMapMsg)
-
 	bitMapBuf := make([]byte, 256)
 	numRecved, err := conn.Read(bitMapBuf)
 
@@ -167,14 +188,25 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		return
 	}
 
+	// 	// bitMapBuf = bitMapBuf[0:numRecved]
+	// 	// bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
+	// 	// bitMapRecvProtocol := int(bitMapBuf[4])
+
+	// 	fmt.Println(bitMapBuf)
+
+	// 	fmt.Println("---sending bitmap buf")
+	// 	bitMapMsg := createBitMapMsg(torrent)
+	// 	fmt.Println(bitMapMsg)
+	// 	conn.Write(bitMapMsg)
+
 	bitMapBuf = bitMapBuf[0:numRecved]
 	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4]) - 1
 	bitMapRecvProtocol := int(bitMapBuf[4])
-
 	fmt.Println("RECVED bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
 	fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
 
 	// 2) SEND INTERESTED MSG
+
 	interestMsg := createInterestMsg()
 	conn.Write(interestMsg)
 	fmt.Println("sending interested msg to peer ...")
@@ -183,7 +215,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	fmt.Println("waiting for  response after sending our interested msg..")
 
 	for {
-		buf := make([]byte, 256)
+		fmt.Println("waiting ... ")
+		buf := make([]byte, 2048)
 		numRecved, err = conn.Read(buf)
 
 		if err != nil && err != io.EOF {
@@ -200,7 +233,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 				payload = buf[5 : 5+msgLen]
 			}
 
-			fmt.Println("....  recved ....")
+			fmt.Println("....  RCVD ....")
 			fmt.Println(recvId)
 			fmt.Println(payload)
 			fmt.Println(".......")
@@ -341,6 +374,22 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	return true
 }
 
+func createRequestMsg() []byte {
+	data := make([]byte, 0)
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(13))
+	data = append(data, tmp...)
+	data = append(data, uint8(6))
+	binary.BigEndian.PutUint32(tmp, uint32(0))
+	data = append(data, tmp...)
+	binary.BigEndian.PutUint32(tmp, uint32(0))
+	data = append(data, tmp...)
+	binary.BigEndian.PutUint32(tmp, uint32(1024))
+	data = append(data, tmp...)
+	fmt.Println(data)
+	return data
+}
+
 func createInterestMsg() []byte {
 	data := make([]byte, 0)
 	tmp := make([]byte, 4)
@@ -361,10 +410,11 @@ func createUnChokeMsg() []byte {
 
 func createBitMapMsg(t *Torrent) []byte {
 	data := make([]byte, 0)
-	data = append(data, uint8(t.NumPieces))
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(len(t.BitMap)+1))
+	data = append(data, tmp...)
 	data = append(data, uint8(5))
 	data = append(data, t.BitMap...)
-
 	return data
 }
 
