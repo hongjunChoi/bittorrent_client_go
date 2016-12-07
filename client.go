@@ -126,6 +126,7 @@ func (c *Client) addTorrent(filename string) {
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
 			b.Offset = j * BLOCKSIZE
+			b.PieceIndex = i
 			b.Data = make([]byte, BLOCKSIZE)
 
 			piece.BlockMap[uint32(b.Offset)] = b
