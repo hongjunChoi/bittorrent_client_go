@@ -41,7 +41,7 @@ type Client struct {
 	Id          string  // self peer id
 	Peers       []*Peer //MAP of remote peer id : peer data
 	TorrentList []*Torrent
-	FunctionMap map[int]func(*Peer, *Torrent)
+	FunctionMap map[int]func(*Peer, *Torrent, []byte)
 }
 
 func main() {
@@ -64,7 +64,7 @@ func createClient() *Client {
 }
 
 func (c *Client) createStateFunctionMap() {
-	functionMap := make(map[int]func(*Peer, *Torrent))
+	functionMap := make(map[int]func(*Peer, *Torrent, []byte))
 
 	functionMap[CHOKE] = c.handleChoke
 	functionMap[UNCHOKE] = c.handleUnchoke
@@ -166,7 +166,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			fmt.Println(".......")
 
 			// STATE MACHINE HERE
-			c.FunctionMap[int(recvId)](peer, torrent)
+			c.FunctionMap[int(recvId)](peer, torrent, payload)
 		}
 	}
 
