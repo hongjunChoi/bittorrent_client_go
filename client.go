@@ -41,13 +41,13 @@ type Client struct {
 	Id          string  // self peer id
 	Peers       []*Peer //MAP of remote peer id : peer data
 	TorrentList []*Torrent
-	FunctionMap map[int]func(*Peer, *Torrent)
+	FunctionMap map[int]func(*Peer, *Torrent, []byte)
 }
 
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/a4.torrent")
+	client.addTorrent("data/trial4.torrent")
 
 	//TODO: cli here
 	for {
@@ -64,7 +64,7 @@ func createClient() *Client {
 }
 
 func (c *Client) createStateFunctionMap() {
-	functionMap := make(map[int]func(*Peer, *Torrent))
+	functionMap := make(map[int]func(*Peer, *Torrent, []byte))
 
 	functionMap[CHOKE] = c.handleChoke
 	functionMap[UNCHOKE] = c.handleUnchoke
@@ -79,6 +79,8 @@ func (c *Client) createStateFunctionMap() {
 
 	c.FunctionMap = functionMap
 }
+
+// func (c *Client) handleUnchod
 
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
@@ -158,6 +160,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			return
 		}
 
+		fmt.Println("recved ..  ", buf[0:numRecved])
+
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 {
 			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
@@ -167,13 +171,13 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 				payload = buf[5 : 5+msgLen]
 			}
 
-			fmt.Println("....  recved ....")
+			fmt.Println("....  RCVD ....")
 			fmt.Println(recvId)
 			fmt.Println(payload)
 			fmt.Println(".......")
 
 			// STATE MACHINE HERE
-			c.FunctionMap[int(recvId)](peer, torrent)
+			c.FunctionMap[int(recvId)](peer, torrent, payload)
 		}
 	}
 

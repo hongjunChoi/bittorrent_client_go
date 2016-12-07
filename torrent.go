@@ -28,42 +28,42 @@ func setBit(n int, pos uint) int {
 	return n
 }
 
-func (c *Client) handleChoke(peer *Peer, torrent *Torrent) {
+func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent) {
+func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleInterested(peer *Peer, torrent *Torrent) {
+func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent) {
+func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleHave(peer *Peer, torrent *Torrent) {
+func (c *Client) handleHave(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleBitfield(peer *Peer, torrent *Torrent) {
+func (c *Client) handleBitfield(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleRequest(peer *Peer, torrent *Torrent) {
+func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handlePiece(peer *Peer, torrent *Torrent) {
+func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handleCancel(peer *Peer, torrent *Torrent) {
+func (c *Client) handleCancel(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
 
-func (c *Client) handlePort(peer *Peer, torrent *Torrent) {
+func (c *Client) handlePort(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
