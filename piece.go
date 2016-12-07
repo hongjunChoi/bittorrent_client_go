@@ -8,6 +8,7 @@ type Piece struct {
 }
 
 type Block struct {
-	Offset int
-	Data   []byte
+	Offset     int
+	Data       []byte
+	PieceIndex int
 }
