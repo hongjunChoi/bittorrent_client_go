@@ -48,7 +48,7 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/trial4.torrent")
+	client.addTorrent("data/trial3.torrent")
 
 	//TODO: cli here
 	for {
@@ -88,10 +88,10 @@ func (c *Client) addTorrent(filename string) {
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
-	torrent.BlockOffsetMap = make(map[int]int64)
+	torrent.BlockOffsetMap = make(map[uint32]int64)
 
 	for i := 0; i < torrent.NumPieces; i++ {
-		torrent.BlockOffsetMap[i] = 0
+		torrent.BlockOffsetMap[uint32(i)] = 0
 	}
 
 	torrent.initBitMap()
@@ -157,8 +157,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			return
 		}
 
-		fmt.Println("recved ..  ", buf[0:numRecved])
-
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 {
 			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
@@ -220,8 +218,12 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 		return make([]*Peer, 0)
 	}
 	peerDict, _ := peerDictData.(map[string]interface{})
-
 	peers := []byte(peerDict["peers"].(string))
+
+	fmt.Println("==== PEER DATA FROM TRACKER =====")
+	fmt.Println(peers)
+	fmt.Println("==========")
+
 	peerData := make([]*Peer, len(peers)/6)
 
 	for i := 0; i < len(peers)/6; i++ {
