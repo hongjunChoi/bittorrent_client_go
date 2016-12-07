@@ -119,11 +119,23 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			return
 		}
 
-		recvedMsg := buf[0:numRecved]
-		fmt.Println("recved ....")
-		fmt.Println(recvedMsg)
+		//IF RECVED MSG IS NOT KEEP ALIVE
+		if numRecved > 0 {
+			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
+			recvId := buf[4]
+			payload := make([]byte, 0)
+			if msgLen > 0 {
+				payload = buf[5 : 5+msgLen]
+			}
 
-		//ACT ACCORDINGLY
+			fmt.Println("....  recved ....")
+			fmt.Println(recvId)
+			fmt.Println(payload)
+			fmt.Println(".......")
+
+			//TODO: STATE MACHINE HERE
+
+		}
 	}
 
 }
