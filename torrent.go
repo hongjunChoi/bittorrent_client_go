@@ -5,12 +5,13 @@ import (
 )
 
 type Torrent struct {
-	BitMap    []byte
-	FileName  string
-	PeerList  []*Peer
-	InfoHash  string
-	NumPieces int
-	PieceSize int64
+	BlockOffsetMap map[int]int64 //for each piece show unti where data is already downloaded (offset in bytes)
+	BitMap         []byte        //map that shows whether piece at index is downloaded or not
+	FileName       string
+	PeerList       []*Peer
+	InfoHash       string
+	NumPieces      int
+	PieceSize      int64
 }
 
 func (t *Torrent) initBitMap() {

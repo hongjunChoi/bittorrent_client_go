@@ -27,6 +27,7 @@ const (
 )
 
 type Peer struct {
+	RemoteBitMap     []byte
 	SelfChoking      bool
 	SelfInterested   bool
 	RemoteChoking    bool
@@ -87,6 +88,12 @@ func (c *Client) addTorrent(filename string) {
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
+	torrent.BlockOffsetMap = make(map[int]int64)
+
+	for i := 0; i < torrent.NumPieces; i++ {
+		torrent.BlockOffsetMap[i] = 0
+	}
+
 	torrent.initBitMap()
 
 	trackerUrl := metaInfo.Announce
@@ -99,7 +106,6 @@ func (c *Client) addTorrent(filename string) {
 
 	c.TorrentList = append(c.TorrentList, torrent)
 
-	//TODO: perhaps make this async or move to other func
 	for _, peer := range peerList {
 		go c.handlePeerConnection(peer, torrent)
 	}
