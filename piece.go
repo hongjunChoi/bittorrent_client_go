@@ -2,7 +2,7 @@ package main
 
 type Piece struct {
 	Index     int
-	BlockMap  map[uint32]Block
+	BlockMap  map[uint32]*Block
 	BitMap    []byte
 	NumBlocks int
 }

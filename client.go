@@ -1,12 +1,14 @@
 package main
 
 import (
-	bencode "./bencode-go"
+	"./bencode-go"
+	"./datastructure"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,6 +27,7 @@ const (
 	PIECE          = 7
 	CANCEL         = 8
 	PORT           = 9
+	BLOCKSIZE      = 1024
 )
 
 type Peer struct {
@@ -37,6 +40,8 @@ type Peer struct {
 	RemotePeerIP     string
 	RemotePeerPort   uint16
 	Connection       *net.Conn
+	BlockQueue       *lane.Queue
+	CurrentBlock     int
 }
 
 type Client struct {
@@ -86,10 +91,15 @@ func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 
+	fmt.Println("====== torrent file info =========")
+	fmt.Println(metaInfo.Info)
+	fmt.Println("===================================")
+
 	torrent := new(Torrent)
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
+	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		torrent.BlockOffsetMap[uint32(i)] = 0
@@ -104,14 +114,55 @@ func (c *Client) addTorrent(filename string) {
 	peerList := get_peer_list(trackerUrl, data)
 	torrent.PeerList = peerList
 	torrent.InfoHash = metaInfo.InfoHash
-
 	c.TorrentList = append(c.TorrentList, torrent)
 
-	//TODO: perhaps make this async or move to other func
+	c.peerListHandShake(torrent, peerList)
+	count := 0
+
+	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
+	for i := 0; i < torrent.NumPieces; i++ {
+		piece := new(Piece)
+		piece.Index = i
+		numBlocks := int(math.Ceil(float64(torrent.PieceSize / BLOCKSIZE)))
+		piece.BitMap = make([]byte, int(math.Ceil(float64(numBlocks/8))))
+
+		for j := 0; j < numBlocks; j++ {
+			b := new(Block)
+			b.Offset = j * BLOCKSIZE
+			b.Data = make([]byte, BLOCKSIZE)
+
+			piece.BlockMap[uint32(b.Offset)] = b
+		}
+		torrent.PieceMap[uint32(i)] = piece
+	}
+
+	//DIVIDE WORK AMONG PEERS HERE
+	for _, piece := range torrent.PieceMap {
+		for _, block := range piece.BlockMap {
+			p := torrent.PeerList[(count % len(torrent.PeerList))]
+			torrent.PeerWorkMap[p] = append(torrent.PeerWorkMap[p], block)
+			count += 1
+		}
+	}
+
 	for _, peer := range peerList {
 		go c.handlePeerConnection(peer, torrent)
 	}
 
+}
+
+func (c *Client) peerListHandShake(torrent *Torrent, peerList []*Peer) {
+	for _, peer := range peerList {
+		//IF handshake filed.
+		if !c.connectToPeer(peer, torrent) {
+			//delete that peer struct pointer from torrent
+			deleteIndex := getPeerIndex(torrent, peer)
+			torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
+			fmt.Println("hand shake failed...")
+			return
+		}
+	}
+	go keepPeerListAlive(torrent)
 }
 
 func (p *Peer) sendKeepAlive() {
@@ -130,17 +181,6 @@ func keepPeerListAlive(torrent *Torrent) {
 }
 
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
-	//IF handshake filed.
-	if !c.connectToPeer(peer, torrent) {
-		//TODO: delete that peer struct pointer from torrent
-		deleteIndex := getPeerIndex(torrent, peer)
-		torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
-		fmt.Println("hand shake failed...")
-		return
-	}
-
-	go keepPeerListAlive(torrent)
-
 	conn := *peer.Connection
 
 	bitMapBuf := make([]byte, 256)
@@ -266,6 +306,8 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
+		peer.BlockQueue = new(lane.Queue)
+		peer.CurrentBlock = 0
 
 		peerData[i] = peer
 	}
@@ -337,17 +379,21 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	return true
 }
 
-func createRequestMsg() []byte {
+func (p *Peer) sendRequestMessage(b *Block) {
+	data := createRequestMsg(b., byteOffset)
+}
+
+func createRequestMsg(pieceIndex int, byteOffset int) []byte {
 	data := make([]byte, 0)
 	tmp := make([]byte, 4)
 	binary.BigEndian.PutUint32(tmp, uint32(13))
 	data = append(data, tmp...)
 	data = append(data, uint8(6))
-	binary.BigEndian.PutUint32(tmp, uint32(0))
+	binary.BigEndian.PutUint32(tmp, uint32(pieceIndex))
 	data = append(data, tmp...)
-	binary.BigEndian.PutUint32(tmp, uint32(0))
+	binary.BigEndian.PutUint32(tmp, uint32(byteOffset))
 	data = append(data, tmp...)
-	binary.BigEndian.PutUint32(tmp, uint32(1024))
+	binary.BigEndian.PutUint32(tmp, uint32(BLOCKSIZE))
 	data = append(data, tmp...)
 	fmt.Println(data)
 	return data

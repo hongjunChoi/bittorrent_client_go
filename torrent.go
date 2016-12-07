@@ -15,7 +15,8 @@ type Torrent struct {
 	InfoHash       string
 	NumPieces      int
 	PieceSize      int64
-	PieceMap       map[uint32]Piece
+	PeerWorkMap    map[*Peer]([]*Block)
+	PieceMap       map[uint32]*Piece
 	BlockSize      uint32
 }
 
@@ -89,6 +90,7 @@ func createZerosBitMap(bits int) []byte {
 	bitMap := make([]byte, length)
 	return bitMap
 }
+
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
@@ -114,6 +116,15 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
 	}
 
+	// REMOVE BLOCK FROM BLOCk QUEUE
+	b := peer.BlockQueue.Pop()
+	if uint32(b.(Block).Offset) != byteOffset {
+		fmt.Println("======= WEIRD POPING FROM BLOCK QUEUE =========")
+	}
+	//GET NEW BLOCK TO REQUEST
+	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
+
+	peer.sendRequestMessage(toRequest)
 	//ADD TO C
 
 	//UPDATE THE BITMAP IFF THE ENTIRE PIECE HAS BEEN DOWNLOADED
