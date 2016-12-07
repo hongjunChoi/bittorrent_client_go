@@ -33,7 +33,7 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/hamlet.torrent")
+	client.addTorrent("data/trial3.torrent")
 
 	//TODO: cli here
 	for {
@@ -96,39 +96,32 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	}
 
 	bitMapBuf = bitMapBuf[0:numRecved]
-	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4])
+	bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4]) - 1
 	bitMapRecvProtocol := int(bitMapBuf[4])
 
 	fmt.Println("RECVED bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
-	fmt.Println(bitMapBuf[5:bitMapRecvLen])
+	fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
 
-	// 2) SEND , RECV INTERESTED MSG
+	// 2) SEND INTERESTED MSG
 	interestMsg := createInterestMsg()
 	conn.Write(interestMsg)
 	fmt.Println("sending interested msg to peer ...")
 	fmt.Println(interestMsg)
 
-	interestBuf := make([]byte, 256) // big buffer
-	numRecved, err = conn.Read(interestBuf)
-	interestBuf = interestBuf[0:numRecved]
+	fmt.Println("waiting for  response after sending our interested msg..")
 
-	if err != nil && err != io.EOF {
-		fmt.Println("=======   read error:", err)
-		return
-	}
-
-	fmt.Println("recving response for our interested msg..")
-	fmt.Println(interestBuf)
-
-	//3) download
 	for {
 		buf := make([]byte, 256)
-		_, err := conn.Read(buf)
+		numRecved, err = conn.Read(buf)
 
 		if err != nil && err != io.EOF {
 			fmt.Println("read error from peer..  :", err)
 			return
 		}
+
+		recvedMsg := buf[0:numRecved]
+		fmt.Println("recved ....")
+		fmt.Println(recvedMsg)
 
 		//ACT ACCORDINGLY
 	}
