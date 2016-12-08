@@ -54,11 +54,11 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/trial3.torrent")
+	client.addTorrent("data/torrent/trial7.torrent")
 
 	//TODO: cli here
 	for {
-
+		time.Sleep(100 * time.Second)
 	}
 
 }
@@ -118,6 +118,11 @@ func (c *Client) addTorrent(filename string) {
 	c.peerListHandShake(torrent, peerList)
 	count := 0
 
+	if len(torrent.PeerList) == 0 {
+		fmt.Println("all peers failed handshake...")
+		return
+	}
+
 	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
 	for i := 0; i < torrent.NumPieces; i++ {
 		piece := new(Piece)
@@ -176,7 +181,7 @@ func keepPeerListAlive(torrent *Torrent) {
 		for _, p := range torrent.PeerList {
 			p.sendKeepAlive()
 		}
-		time.Sleep(120 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
 
@@ -215,23 +220,37 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			return
 		}
 
+		fmt.Println("....  RCVD  ....")
+		fmt.Println(buf[0:numRecved])
+		fmt.Println(".......")
+
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 {
 			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
 			recvId := buf[4]
 			payload := make([]byte, 0)
 			if msgLen > 0 {
+				fmt.Println("====")
 				payload = buf[5 : 5+msgLen]
 			}
 
-			fmt.Println("....  RCVD ....")
+			fmt.Println("======  RECEIVED PAYLOAD ====")
 			fmt.Println(recvId)
 			fmt.Println(payload)
-			fmt.Println(".......")
+			fmt.Println("===========")
 
 			// STATE MACHINE HERE
 			c.FunctionMap[int(recvId)](peer, torrent, payload)
 		}
+
+		interestMsg = createInterestMsg()
+		_, err = conn.Write(interestMsg)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("sending interested msg to peer ...")
+		fmt.Println(interestMsg)
+
 	}
 
 }

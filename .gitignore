@@ -1,4 +1,6 @@
 .DS*
 node
-nod
-a
+data/torrent/
+data/torrent/*
+./data/torrent/
+./data/torrent/*
