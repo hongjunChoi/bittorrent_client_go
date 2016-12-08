@@ -29,6 +29,10 @@ func setBit(n int, pos uint) int {
 	return n
 }
 
+func getBit(n uint8, pos int) uint8 {
+	return (n >> uint(pos)) & 1
+}
+
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
@@ -108,18 +112,10 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	block.Data = data
 
 	//UPDATE BITMAP OF PIECE
-<<<<<<< HEAD
-	fmt.Println("=====  LOOK HERE ======")
-	fmt.Println(byteOffset)
-	fmt.Println(BLOCKSIZE)
-	fmt.Println("============")
 
 	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
 	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
-=======
-	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
-	bitMapBitIndx := int(byteOffset/ BLOCKSIZE) % 8
->>>>>>> e6b4b1746c533c8522d6aebff52ae470e294fcdb
+
 	byteValue := piece.BitMap[bitMapBitIndx]
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
