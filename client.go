@@ -349,7 +349,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 	fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
 
-	conn, err := net.Dial("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)))
+	conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(4)*time.Second)
 	if err != nil {
 		fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
 		fmt.Println(err)
