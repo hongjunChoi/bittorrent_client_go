@@ -316,7 +316,7 @@ func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
-		peer.BlockQueue = new(lane.Queue)
+		peer.BlockQueue = lane.NewQueue()
 		peer.CurrentBlock = 0
 
 		peerData[i] = peer
