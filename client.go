@@ -353,6 +353,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 		return false
 	}
 
+	fmt.Println("Sending handshake")
 	// Client transmit first message to server
 	firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
 	conn.Write(firstMsg)
