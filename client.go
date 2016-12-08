@@ -139,6 +139,11 @@ func (c *Client) addTorrent(filename string) {
 			b.Offset = j * BLOCKSIZE
 			b.PieceIndex = i
 			b.Data = make([]byte, BLOCKSIZE)
+			b.Size = BLOCKSIZE
+
+			if j == numBlocks-1 {
+				b.Size = int(torrent.PieceSize) - b.Offset
+			}
 
 			piece.BlockMap[uint32(b.Offset)] = b
 		}
@@ -215,7 +220,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 	for {
 		fmt.Println("waiting ... ")
-		buf := make([]byte, 2048)
+		buf := make([]byte, 8192)
 		numRecved, err = conn.Read(buf)
 
 		if err != nil && err != io.EOF {
@@ -223,17 +228,24 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			return
 		}
 
+		buf = buf[0:numRecved]
 		fmt.Println("....  RCVD  ....")
-		fmt.Println(buf[0:numRecved])
+		fmt.Println(buf)
 		fmt.Println(".......")
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
-		if numRecved > 0 {
-			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
+		if numRecved > 0 && buf[4] != 0 {
+
 			recvId := buf[4]
+			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
 			payload := make([]byte, 0)
+
 			if msgLen > 0 {
-				fmt.Println("====")
+				fmt.Println("== LOOK HERE ==")
+				fmt.Println(numRecved)
+				fmt.Println(msgLen)
+				fmt.Println(recvId)
+				fmt.Println("===========")
 				payload = buf[5 : 5+msgLen]
 			}
 
@@ -347,60 +359,59 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	peerPortNum := peer.RemotePeerPort
 	infohash := torrent.InfoHash
 
-	fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
+	for peerPortNum < 6889 {
+		fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
+		conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(3)*time.Second)
+		if err != nil {
+			fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
+			fmt.Println(err)
+			peerPortNum += 1
+			continue
+		}
 
-	conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(4)*time.Second)
-	if err != nil {
-		fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
-		fmt.Println(err)
-		return false
+		// Client transmit first message to server
+		firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
+		conn.Write(firstMsg)
+
+		buf := make([]byte, 256)
+		_, err = conn.Read(buf)
+
+		if err != nil && err != io.EOF {
+			fmt.Println("read error:", err)
+			return false
+		}
+
+		recvMsgLen := uint8(buf[0])
+		recvMsg := string(buf[1 : 1+recvMsgLen])
+		recvInfoHash := string(buf[9+recvMsgLen : 29+recvMsgLen])
+		recvPeerId := string(buf[29+recvMsgLen : 49+recvMsgLen])
+
+		//CHECK for inconsistent info hash  or peer id
+		if peer.RemotePeerId == "" {
+			peer.RemotePeerId = recvPeerId
+		}
+
+		if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
+			fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
+			fmt.Println(peer.RemotePeerId)
+			fmt.Println(recvPeerId)
+			fmt.Println(infohash)
+			fmt.Println(recvInfoHash)
+			fmt.Println("================")
+			conn.Close()
+			return false
+		}
+
+		fmt.Println("handshake complete...", recvMsg)
+		peer.Connection = &conn
+		return true
 	}
-
-	fmt.Println("Sending handshake")
-	// Client transmit first message to server
-	firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
-	conn.Write(firstMsg)
-
-	buf := make([]byte, 256)
-	_, err = conn.Read(buf)
-
-	if err != nil && err != io.EOF {
-		fmt.Println("read error:", err)
-		return false
-	}
-
-	recvMsgLen := uint8(buf[0])
-	recvMsg := string(buf[1 : 1+recvMsgLen])
-	recvInfoHash := string(buf[9+recvMsgLen : 29+recvMsgLen])
-	recvPeerId := string(buf[29+recvMsgLen : 49+recvMsgLen])
-
-	//CHECK for inconsistent info hash  or peer id
-	if peer.RemotePeerId == "" {
-		peer.RemotePeerId = recvPeerId
-	}
-
-	if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
-		fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
-		fmt.Println(peer.RemotePeerId)
-		fmt.Println(recvPeerId)
-		fmt.Println(infohash)
-		fmt.Println(recvInfoHash)
-		fmt.Println("================")
-		conn.Close()
-		return false
-	}
-
-	fmt.Println("handshake complete...", recvMsg)
-	peer.Connection = &conn
-	return true
+	return false
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
 	data := createRequestMsg(b.PieceIndex, b.Offset)
 	(*p.Connection).Write(data)
-	fmt.Println("=== look ====")
-	fmt.Println(p.BlockQueue)
-	fmt.Println("==============")
 	p.BlockQueue.Enqueue(b)
 }
 

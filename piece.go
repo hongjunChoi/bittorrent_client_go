@@ -11,4 +11,5 @@ type Block struct {
 	Offset     int
 	Data       []byte
 	PieceIndex int
+	Size       int
 }

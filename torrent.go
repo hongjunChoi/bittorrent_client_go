@@ -108,8 +108,13 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	block.Data = data
 
 	//UPDATE BITMAP OF PIECE
-	bitMapByteIndx := int(byteOffset / torrent.BlockSize / 8)
-	bitMapBitIndx := int(byteOffset/torrent.BlockSize) % 8
+	fmt.Println("=====  LOOK HERE ======")
+	fmt.Println(byteOffset)
+	fmt.Println(BLOCKSIZE)
+	fmt.Println("============")
+
+	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
+	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
 	byteValue := piece.BitMap[bitMapBitIndx]
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
@@ -122,9 +127,10 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	// REMOVE BLOCK FROM BLOCk QUEUE
 	b := peer.BlockQueue.Dequeue()
-	if uint32(b.(Block).Offset) != byteOffset {
+	if uint32(b.(*Block).Offset) != byteOffset {
 		fmt.Println("======= WEIRD POPING FROM BLOCK QUEUE =========")
 	}
+
 	//GET NEW BLOCK TO REQUEST
 	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
 	peer.CurrentBlock += 1
