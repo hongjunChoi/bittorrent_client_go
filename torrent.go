@@ -36,7 +36,7 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
 	fmt.Println(len(torrent.PeerWorkMap[peer]))
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
 	}
@@ -108,6 +108,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	block.Data = data
 
 	//UPDATE BITMAP OF PIECE
+<<<<<<< HEAD
 	fmt.Println("=====  LOOK HERE ======")
 	fmt.Println(byteOffset)
 	fmt.Println(BLOCKSIZE)
@@ -115,6 +116,10 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
 	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
+=======
+	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
+	bitMapBitIndx := int(byteOffset/ BLOCKSIZE) % 8
+>>>>>>> e6b4b1746c533c8522d6aebff52ae470e294fcdb
 	byteValue := piece.BitMap[bitMapBitIndx]
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
