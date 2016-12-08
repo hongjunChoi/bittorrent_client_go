@@ -35,6 +35,7 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
+	fmt.Println(len(torrent.PeerWorkMap[peer]))
 	for i := 0; i < 10; i++ {
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
