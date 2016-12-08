@@ -258,13 +258,13 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			c.FunctionMap[int(recvId)](peer, torrent, payload)
 		}
 
-		interestMsg = createInterestMsg()
-		_, err = conn.Write(interestMsg)
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println("sending interested msg to peer ...")
-		fmt.Println(interestMsg)
+		// interestMsg = createInterestMsg()
+		// _, err = conn.Write(interestMsg)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// }
+		// fmt.Println("sending interested msg to peer ...")
+		// fmt.Println(interestMsg)
 
 	}
 
