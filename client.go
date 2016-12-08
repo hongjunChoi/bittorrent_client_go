@@ -151,8 +151,12 @@ func (c *Client) addTorrent(filename string) {
 
 	//DIVIDE WORK AMONG PEERS HERE
 
-	for pieceIndex, piece := range torrent.PieceMap {
+	for i := 0; i < torrent.NumPieces; i++ {
+		// for pieceIndex, piece := range torrent.PieceMap {
+		pieceIndex := i
+		piece := torrent.PieceMap[uint32(pieceIndex)]
 		pieceCount := torrent.NumPieces
+
 		for _, peer := range torrent.PeerList {
 			//if peer bit map in index of currnet piece is 1 then give all piece blocks to peer
 			bitShiftIndex := 7 - (pieceIndex % 8)
