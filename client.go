@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 )
@@ -54,7 +55,9 @@ type Client struct {
 func main() {
 
 	client := createClient()
-	client.addTorrent("data/torrent/trial7.torrent")
+	args := os.Args
+	torrentName := args[1]
+	client.addTorrent(torrentName)
 
 	//TODO: cli here
 	for {
