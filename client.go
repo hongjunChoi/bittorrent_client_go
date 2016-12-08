@@ -118,7 +118,7 @@ func (c *Client) addTorrent(filename string) {
 
 	c.TorrentList = append(c.TorrentList, torrent)
 
-	c.peerListHandShake(torrent, peerList)
+	c.peerListHandShake(torrent)
 	count := 0
 
 	if len(torrent.PeerList) == 0 {
@@ -160,8 +160,8 @@ func (c *Client) addTorrent(filename string) {
 
 }
 
-func (c *Client) peerListHandShake(torrent *Torrent, peerList []*Peer) {
-	for _, peer := range peerList {
+func (c *Client) peerListHandShake(torrent *Torrent) {
+	for _, peer := range torrent.PeerList {
 		//IF handshake filed.
 		if !c.connectToPeer(peer, torrent) {
 			//delete that peer struct pointer from torrent
@@ -381,6 +381,11 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 	if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
 		fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
+		fmt.Println(peer.RemotePeerId)
+		fmt.Println(recvPeerId)
+		fmt.Println(infohash)
+		fmt.Println(recvInfoHash)
+		fmt.Println("================")
 		conn.Close()
 		return false
 	}
@@ -393,6 +398,9 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 func (p *Peer) sendRequestMessage(b *Block) {
 	data := createRequestMsg(b.PieceIndex, b.Offset)
 	(*p.Connection).Write(data)
+	fmt.Println("=== look ====")
+	fmt.Println(p.BlockQueue)
+	fmt.Println("==============")
 	p.BlockQueue.Enqueue(b)
 }
 
