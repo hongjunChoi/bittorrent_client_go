@@ -6,3 +6,6 @@ data/torrent/*
 ./data/torrent/
 ./data/torrent/*
 *.torrent
+./down/*
+down/*
+
