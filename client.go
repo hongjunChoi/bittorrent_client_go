@@ -148,20 +148,23 @@ func (c *Client) addTorrent(filename string) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			if i == 0 {
-				torrent.FileTrial = file
-			}
+
+			file.Close()
+			// if i == 0 {
+			// 	torrent.FileList[i] = file
+			// }
 		}
 	}
 
-	torrent.FileTrial.Seek(50, 0)
-	torrent.FileTrial.Write([]byte("aaaa"))
-	torrent.FileTrial.Seek(0, 0)
-	torrent.FileTrial.Write([]byte("aaaa"))
+	// torrent.FileTrial.Seek(50, 0)
+	// torrent.FileTrial.Write([]byte("aaaa"))
+	// torrent.FileTrial.Seek(0, 0)
+	// torrent.FileTrial.Write([]byte("aaaa"))
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
 	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
+	torrent.MetaInfo = metaInfo
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		torrent.BlockOffsetMap[uint32(i)] = 0
@@ -181,12 +184,7 @@ func (c *Client) addTorrent(filename string) {
 
 	c.TorrentList = append(c.TorrentList, torrent)
 
-	c.peerListHandShake(torrent)
 
-	if len(torrent.PeerList) == 0 {
-		fmt.Println("all peers failed handshake...")
-		return
-	}
 
 	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
 	for i := 0; i < torrent.NumPieces; i++ {
@@ -197,6 +195,39 @@ func (c *Client) addTorrent(filename string) {
 		piece.NumBlocks = numBlocks
 		piece.BitMap = createZerosBitMap(numBlocks)
 
+		fileDictList := torrent.MetaInfo.Info.Files
+		byteIndx := int64(i) * torrent.PieceSize
+		pieceOffset := int64(0)
+		cursor := int64(0)
+		for k := 0; k < len(fileDictList); k++ {
+			fileInfo := fileDictList[k]
+			// fmt.Println("check")
+			if byteIndx < cursor+fileInfo.Length {
+				// start writing to file
+				file := new(File)
+				file.FileName = generateFilePath(fileInfo.Path)
+				file.startIndx = byteIndx - cursor
+
+				bytesLeftInFile := cursor + fileInfo.Length - byteIndx
+				piece.FileMap = append(piece.FileMap, file)
+
+				if torrent.PieceSize - pieceOffset <= bytesLeftInFile {
+					file.endIndx = file.startIndx + torrent.PieceSize - pieceOffset
+					// torrent.FileList[i].Seek(, whence)
+					break
+				} else {
+					// fmt.Println("to next file!")
+					file.endIndx = file.startIndx + bytesLeftInFile
+					pieceOffset += bytesLeftInFile
+					byteIndx = cursor + fileInfo.Length
+				}
+			}
+			cursor += fileInfo.Length
+		}
+		fmt.Println("fileMap: ")
+		for j:= 0; j<len(piece.FileMap); j++ {
+			fmt.Println(piece.FileMap[j])
+		}
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
 			b.Offset = j * BLOCKSIZE
@@ -212,6 +243,12 @@ func (c *Client) addTorrent(filename string) {
 		}
 		torrent.PieceMap[uint32(i)] = piece
 	}
+	c.peerListHandShake(torrent)
+
+	if len(torrent.PeerList) == 0 {
+		fmt.Println("all peers failed handshake...")
+		return
+	}
 
 	//DIVIDE WORK AMONG PEERS HERE
 
@@ -219,19 +256,19 @@ func (c *Client) addTorrent(filename string) {
 		// for pieceIndex, piece := range torrent.PieceMap {
 		pieceIndex := i
 		piece := torrent.PieceMap[uint32(pieceIndex)]
-		pieceCount := torrent.NumPieces
+		// pieceCount := torrent.NumPieces
 
 		for _, peer := range torrent.PeerList {
 			//if peer bit map in index of currnet piece is 1 then give all piece blocks to peer
 			bitShiftIndex := 7 - (pieceIndex % 8)
 			bitmapIndex := pieceIndex / 8
 
-			fmt.Println("======  dividing work here =====")
-			fmt.Println(pieceCount)
-			fmt.Println(pieceIndex)
-			fmt.Println(bitmapIndex)
-			fmt.Println(bitShiftIndex)
-			fmt.Println("====================")
+			// fmt.Println("======  dividing work here =====")
+			// fmt.Println(pieceCount)
+			// fmt.Println(pieceIndex)
+			// fmt.Println(bitmapIndex)
+			// fmt.Println(bitShiftIndex)
+			// fmt.Println("====================")
 
 			if getBit(peer.RemoteBitMap[bitmapIndex], int(bitShiftIndex)) == 1 {
 				for _, block := range piece.BlockMap {
@@ -306,7 +343,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		}
 
 		buf = buf[0:numRecved]
-
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 && buf[4] != 0 {

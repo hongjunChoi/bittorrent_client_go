@@ -19,7 +19,8 @@ type Torrent struct {
 	PeerWorkMap    map[*Peer]([]*Block)
 	PieceMap       map[uint32]*Piece
 	BlockSize      uint32
-	FileTrial      *os.File
+	MetaInfo       *MetaInfo
+	FileList       []*os.File
 }
 
 func (t *Torrent) initBitMap() {
@@ -133,13 +134,17 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
-		// f, err := os.OpenFile(filename, os.O_APPEND, 0666)
+		// GET CORRECT FILE
+		
+		// GET CORRECT BYTE OFFSET and SEEK
+
+		// WRITE TO FILE ALL BYTES
 
 		// n, err := f.WriteString(text)
 
 		// f.Close()
-	}
 
+	}
 	// REMOVE BLOCK FROM BLOCk QUEUE
 	b := peer.BlockQueue.Dequeue()
 	if uint32(b.(*Block).Offset) != byteOffset {
@@ -160,6 +165,15 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	//CALL NEXT BLOCK IN QUEUE FOR MORE DOWNLOAD
 }
+
+// func computePieceLocation(pieceIndex int, torrent *Torrent) {
+// 	fileDictList := torrent.MetaInfo.Info.Files
+// 	byteIndx := pieceIndex * BLOCKSIZE
+// 	int count = 0
+// 	for i := 0 ; i < len(fileDictList); i++ {
+// 		if (fileDictList[i].Length)
+// 	}
+// }
 
 func (c *Client) handleCancel(peer *Peer, torrent *Torrent, payload []byte) {
 
