@@ -31,6 +31,10 @@ func setBit(n int, pos uint) int {
 	return n
 }
 
+func getBit(n uint8, pos int) uint8 {
+	return (n >> uint(pos)) & 1
+}
+
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
