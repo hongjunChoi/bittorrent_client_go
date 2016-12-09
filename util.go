@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"math/rand"
 	"strconv"
 	"time"
@@ -48,4 +49,15 @@ func getPeerIndex(torrent *Torrent, peer *Peer) int {
 		}
 	}
 	return 0
+}
+
+func checkHash(data []byte, hash string) bool {
+	sha1 := (sha1.Sum(data))
+	sha1String := make([]byte, len(sha1))
+	for i := 0; i < len(sha1); i++ {
+		sha1String[i] = sha1[i]
+	}
+
+	return string(sha1String) == hash
+
 }

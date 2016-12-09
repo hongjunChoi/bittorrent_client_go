@@ -36,6 +36,20 @@ func getBit(n uint8, pos int) uint8 {
 	return (n >> uint(pos)) & 1
 }
 
+func (torrent *Torrent) sendHaving(piece *Piece) {
+	pieceIndex := piece.Index
+	msg := createHaveMsg(pieceIndex)
+	for _, peer := range torrent.PeerList {
+		conn := *peer.Connection
+		_, err := conn.Write(msg)
+		if err != nil {
+			fmt.Println("==== error in sending have message for seeding to peers =========")
+			fmt.Println(err)
+		}
+	}
+
+}
+
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 }
@@ -135,7 +149,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
 		// GET CORRECT FILE
-		
+
 		// GET CORRECT BYTE OFFSET and SEEK
 
 		// WRITE TO FILE ALL BYTES
@@ -143,7 +157,46 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		// n, err := f.WriteString(text)
 
 		// f.Close()
+		// Open a new file for writing only
+		pieceBuf := make([]byte, torrent.PieceSize)
+		for i := 0; i < piece.NumBlocks; i++ {
+			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
+		}
+		fileMap := piece.FileMap
+		numFiles := len(piece.FileMap)
+		start := int64(0)
+		end := int64(0)
+		for i := 0; i < numFiles; i++ {
+			file, err := os.OpenFile(
+				fileMap[i].FileName,
+				os.O_WRONLY,
+				0666,
+			)
+			end = start + fileMap[i].endIndx - fileMap[i].startIndx
+			file.Seek(fileMap[i].startIndx, 0)
+			if err != nil {
+				fmt.Println(err)
+			}
+			file.Write(pieceBuf[start:end])
+			defer file.Close()
+			start = end
+		}
 
+		// Write bytes to file
+		// file.Seek(0, 0)
+		// byteSlice := []byte("Bytes!\n")
+		// bytesWritten, err := file.Write(byteSlice)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// }
+		// fmt.Println("Wrote %d bytes.\n", bytesWritten)
+
+		// file.Seek(20, 0)
+		// bytesWritten, err = file.Write(byteSlice)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// }
+		// fmt.Println("Wrote %d bytes.\n", bytesWritten)
 	}
 	// REMOVE BLOCK FROM BLOCk QUEUE
 	b := peer.BlockQueue.Dequeue()
