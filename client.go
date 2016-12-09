@@ -54,32 +54,6 @@ type Client struct {
 
 func main() {
 
-	// // Open a new file for writing only
-	// file, err := os.OpenFile(
-	//     "test",
-	//     os.O_WRONLY|os.O_TRUNC,
-	//     0666,
-	// )
-	// if err != nil {
-	//     fmt.Println(err)
-	// }
-	// defer file.Close()
-
-	// // Write bytes to file
-	// file.Seek(0, 0)
-	// byteSlice := []byte("Bytes!\n")
-	// bytesWritten, err := file.Write(byteSlice)
-	// if err != nil {
-	//     fmt.Println(err)
-	// }
-	// fmt.Println("Wrote %d bytes.\n", bytesWritten)
-
-	// file.Seek(20, 0)
-	// bytesWritten, err = file.Write(byteSlice)
-	// if err != nil {
-	//     fmt.Println(err)
-	// }
-	// fmt.Println("Wrote %d bytes.\n", bytesWritten)
 	client := createClient()
 	args := os.Args
 	torrentName := args[1]
@@ -108,7 +82,7 @@ func (c *Client) checkAlreadyDownloaded(torrent *Torrent) []bool {
 
 			file, err := os.Open(filename)
 			if err != nil {
-				fmt.Println("==== ERROR READING FILE ====")
+
 				bitMap[i] = false
 				break
 			}
@@ -118,8 +92,7 @@ func (c *Client) checkAlreadyDownloaded(torrent *Torrent) []bool {
 			n, err = file.ReadAt(b, startIndex)
 
 			if err != nil {
-				fmt.Println("======    ERROR IN READING FILE TO CHECK ALREADY EXIST     ========")
-				fmt.Println(err)
+
 				bitMap[i] = false
 				break
 			}
@@ -166,16 +139,8 @@ func generateFilePath(path []string) string {
 	}
 	return filePath
 }
-func (c *Client) addTorrent(filename string) {
-	metaInfo := new(MetaInfo)
-	metaInfo.ReadTorrentMetaInfoFile(filename)
-	fmt.Println("===== checking how many files")
-	fmt.Println(metaInfo.Info.Name)
-	fmt.Println(metaInfo.Info.Length)
 
-	torrent := new(Torrent)
-	torrent.MetaInfo = metaInfo
-
+func createFiles(metaInfo *MetaInfo) {
 	numFiles := len(metaInfo.Info.Files)
 	if numFiles > 0 {
 		fmt.Println("====== ", numFiles, " files ========")
@@ -190,47 +155,32 @@ func (c *Client) addTorrent(filename string) {
 				0666,
 			)
 			if err != nil {
+				fmt.Println("=== ERROR CREATING FILE =====")
 				fmt.Println(err)
+				return
 			}
-
 			file.Close()
-			// if i == 0 {
-			// 	torrent.FileList[i] = file
-			// }
 		}
+	} else {
+		path := make([]string, 1)
+		path[0] = metaInfo.Info.Name
+
+		file, err := os.OpenFile(
+			generateFilePath(path),
+			os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
+			0666,
+		)
+
+		if err != nil {
+			fmt.Println("=== ERROR CREATING FILE =====")
+			fmt.Println(err)
+			return
+		}
+		file.Close()
 	}
+}
 
-	// torrent.FileTrial.Seek(50, 0)
-	// torrent.FileTrial.Write([]byte("aaaa"))
-	// torrent.FileTrial.Seek(0, 0)
-	// torrent.FileTrial.Write([]byte("aaaa"))
-	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
-	torrent.PieceSize = metaInfo.Info.PieceLength
-	torrent.BlockOffsetMap = make(map[uint32]int64)
-	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
-	torrent.MetaInfo = metaInfo
-
-	for i := 0; i < torrent.NumPieces; i++ {
-		torrent.BlockOffsetMap[uint32(i)] = 0
-	}
-
-	torrent.initBitMap()
-
-	trackerUrl := metaInfo.Announce
-
-	data := parseMetaInfo(metaInfo)
-	data["peer_id"] = c.Id
-
-	peerList := get_peer_list(trackerUrl, data)
-	torrent.PeerList = peerList
-	torrent.InfoHash = metaInfo.InfoHash
-	torrent.PieceMap = make(map[uint32]*Piece)
-
-	c.TorrentList = append(c.TorrentList, torrent)
-
-
-
-	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
+func (torrent *Torrent) createDataBlocks() {
 	for i := 0; i < torrent.NumPieces; i++ {
 		piece := new(Piece)
 		piece.Index = i
@@ -255,7 +205,7 @@ func (c *Client) addTorrent(filename string) {
 				bytesLeftInFile := cursor + fileInfo.Length - byteIndx
 				piece.FileMap = append(piece.FileMap, file)
 
-				if torrent.PieceSize - pieceOffset <= bytesLeftInFile {
+				if torrent.PieceSize-pieceOffset <= bytesLeftInFile {
 					file.endIndx = file.startIndx + torrent.PieceSize - pieceOffset
 					// torrent.FileList[i].Seek(, whence)
 					break
@@ -268,10 +218,12 @@ func (c *Client) addTorrent(filename string) {
 			}
 			cursor += fileInfo.Length
 		}
-		fmt.Println("fileMap: ")
-		for j:= 0; j<len(piece.FileMap); j++ {
-			fmt.Println(piece.FileMap[j])
-		}
+
+		// fmt.Println("fileMap: ")
+		// for j := 0; j < len(piece.FileMap); j++ {
+		// 	fmt.Println(piece.FileMap[j])
+		// }
+
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
 			b.Offset = j * BLOCKSIZE
@@ -287,17 +239,10 @@ func (c *Client) addTorrent(filename string) {
 		}
 		torrent.PieceMap[uint32(i)] = piece
 	}
-	
-	c.peerListHandShake(torrent)
 
-	if len(torrent.PeerList) == 0 {
-		fmt.Println("all peers failed handshake...")
-		return
-	}
+}
 
-	//DIVIDE WORK AMONG PEERS HERE
-	downloadMap := c.checkAlreadyDownloaded(torrent)
-
+func (torrent *Torrent) divideWork(downloadMap []bool) {
 	for i := 0; i < torrent.NumPieces; i++ {
 		if downloadMap[i] {
 			continue
@@ -333,6 +278,59 @@ func (c *Client) addTorrent(filename string) {
 		}
 
 	}
+}
+
+func (c *Client) addTorrent(filename string) {
+	metaInfo := new(MetaInfo)
+	metaInfo.ReadTorrentMetaInfoFile(filename)
+	fmt.Println("===== checking how many files")
+	fmt.Println(metaInfo.Info.Name)
+	fmt.Println(metaInfo.Info.Length)
+	fmt.Println(len(metaInfo.Info.Files))
+	fmt.Println("===========")
+
+	createFiles(metaInfo)
+
+	torrent := new(Torrent)
+	torrent.MetaInfo = metaInfo
+
+	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
+	torrent.PieceSize = metaInfo.Info.PieceLength
+	torrent.BlockOffsetMap = make(map[uint32]int64)
+	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
+	torrent.MetaInfo = metaInfo
+
+	for i := 0; i < torrent.NumPieces; i++ {
+		torrent.BlockOffsetMap[uint32(i)] = 0
+	}
+
+	torrent.initBitMap()
+
+	trackerUrl := metaInfo.Announce
+
+	data := parseMetaInfo(metaInfo)
+	data["peer_id"] = c.Id
+
+	peerList := get_peer_list(trackerUrl, data)
+	torrent.PeerList = peerList
+	torrent.InfoHash = metaInfo.InfoHash
+	torrent.PieceMap = make(map[uint32]*Piece)
+
+	c.TorrentList = append(c.TorrentList, torrent)
+
+	//CREATE ALL PIECE AND BLOCKS IN TORRENT AND STORE IN STRUCT
+	torrent.createDataBlocks()
+
+	c.peerListHandShake(torrent)
+
+	if len(torrent.PeerList) == 0 {
+		fmt.Println("all peers failed handshake...")
+		return
+	}
+
+	//DIVIDE WORK AMONG PEERS HERE
+	downloadMap := c.checkAlreadyDownloaded(torrent)
+	torrent.divideWork(downloadMap)
 
 	for _, peer := range torrent.PeerList {
 		go c.handlePeerConnection(peer, torrent)
@@ -354,6 +352,7 @@ func (c *Client) peerListHandShake(torrent *Torrent) {
 }
 
 func (p *Peer) sendKeepAlive() {
+
 	conn := *p.Connection
 	conn.Write(make([]byte, 0))
 }
@@ -406,15 +405,17 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			msgLen := binary.BigEndian.Uint32(buf[0:4]) - 1
 			payload := make([]byte, 0)
 
-			if msgLen > 0 {
+			fmt.Println("\n\n\n\n======  RECEIVED PAYLOAD ====")
+			fmt.Println(buf)
+			fmt.Println(len(buf))
+			fmt.Println(msgLen)
+			fmt.Println(recvId)
+			fmt.Println("===========\n\n\n\n\n\n")
 
+			fmt.Println("recved message length : ", msgLen)
+			if msgLen > 0 {
 				payload = buf[5 : 5+msgLen]
 			}
-
-			// fmt.Println("======  RECEIVED PAYLOAD ====")
-			// fmt.Println(recvId)
-			// fmt.Println(payload)
-			// fmt.Println("===========")
 
 			// STATE MACHINE HERE
 			c.FunctionMap[int(recvId)](peer, torrent, payload)
@@ -443,6 +444,11 @@ func parseMetaInfo(info *MetaInfo) map[string]string {
 
 func get_peer_list(trackerUrl string, data map[string]string) []*Peer {
 	url := createTrackerQuery(trackerUrl, data)
+
+	fmt.Println("\n\n==========  CONTACINT TRACKER ========")
+	fmt.Println(url)
+	fmt.Println("======================================\n\n")
+
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -581,7 +587,13 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 func (p *Peer) sendRequestMessage(b *Block) {
 	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
-	(*p.Connection).Write(data)
+	_, err := (*p.Connection).Write(data)
+	if err != nil {
+		fmt.Println("==== ERROR IN SENDING REQUEST MESG TO PEER  ======")
+		fmt.Println(err)
+		fmt.Println("==============")
+	}
+
 	p.BlockQueue.Enqueue(b)
 }
 
