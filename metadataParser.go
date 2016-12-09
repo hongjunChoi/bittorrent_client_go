@@ -27,6 +27,7 @@ type InfoDict struct {
 	Md5sum string "md5sum"
 	// Multiple files
 	Files       []FileDict "files"
+	
 	PieceLength int64      "piece length"
 	Pieces      string     "pieces"
 	Private     int64      "private"

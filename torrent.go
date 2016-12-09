@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"os"
 )
 
 type Torrent struct {
@@ -18,6 +19,7 @@ type Torrent struct {
 	PeerWorkMap    map[*Peer]([]*Block)
 	PieceMap       map[uint32]*Piece
 	BlockSize      uint32
+	FileTrial      *os.File
 }
 
 func (t *Torrent) initBitMap() {
@@ -40,7 +42,7 @@ func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
 	}
-	peer.CurrentBlock = 10
+	peer.CurrentBlock = 1
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -81,6 +83,7 @@ func createOnesBitMap(bits int) []byte {
 		}
 		bitMap[length-1] = byte(byteVal)
 	}
+	fmt.Println("-------")
 	fmt.Println(bitMap)
 	return bitMap
 }
@@ -109,18 +112,28 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	//UPDATE BITMAP OF PIECE
 
-
 	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
 	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
 
-	byteValue := piece.BitMap[bitMapBitIndx]
+	byteValue := piece.BitMap[bitMapByteIndx]
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
 
 	//CHECK IF PIECE IS FULL
+	fmt.Println("----------")
+	fmt.Println(piece.NumBlocks)
 	completeMap := createOnesBitMap(piece.NumBlocks)
+	fmt.Println("pieceVal: ", piece.Index)
+	fmt.Println("offsetVal: ", byteOffset)
+	fmt.Println("bitMap: ", piece.BitMap)
+
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
+		// f, err := os.OpenFile(filename, os.O_APPEND, 0666)
+
+		// n, err := f.WriteString(text)
+
+		// f.Close()
 	}
 
 	// REMOVE BLOCK FROM BLOCk QUEUE

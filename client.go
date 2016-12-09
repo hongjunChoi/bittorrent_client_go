@@ -54,6 +54,32 @@ type Client struct {
 
 func main() {
 
+	// // Open a new file for writing only
+	// file, err := os.OpenFile(
+	//     "test",
+	//     os.O_WRONLY|os.O_TRUNC,
+	//     0666,
+	// )
+	// if err != nil {
+	//     fmt.Println(err)
+	// }
+	// defer file.Close()
+
+	// // Write bytes to file
+	// file.Seek(0, 0)
+	// byteSlice := []byte("Bytes!\n")
+	// bytesWritten, err := file.Write(byteSlice)
+	// if err != nil {
+	//     fmt.Println(err)
+	// }
+	// fmt.Println("Wrote %d bytes.\n", bytesWritten)
+
+	// file.Seek(20, 0)
+	// bytesWritten, err = file.Write(byteSlice)
+	// if err != nil {
+	//     fmt.Println(err)
+	// }
+	// fmt.Println("Wrote %d bytes.\n", bytesWritten)
 	client := createClient()
 	args := os.Args
 	torrentName := args[1]
@@ -90,11 +116,48 @@ func (c *Client) createStateFunctionMap() {
 	c.FunctionMap = functionMap
 }
 
+func generateFilePath(path []string) string {
+	filePath := "down"
+	for i := 0; i < len(path); i++ {
+		filePath = filePath + "/" + path[i]
+	}
+	return filePath
+}
 func (c *Client) addTorrent(filename string) {
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
+	fmt.Println("===== checking how many files")
+	fmt.Println(metaInfo.Info.Name)
+	fmt.Println(metaInfo.Info.Length)
 
 	torrent := new(Torrent)
+
+	numFiles := len(metaInfo.Info.Files)
+	if numFiles > 0 {
+		fmt.Println("====== ", numFiles, " files ========")
+		for i := 0; i < numFiles; i++ {
+			fmt.Println(metaInfo.Info.Files[i].Path)
+			fmt.Println(metaInfo.Info.Files[i].Length)
+			//Create File
+			// Open a new file for writing only
+			file, err := os.OpenFile(
+				generateFilePath(metaInfo.Info.Files[i].Path),
+				os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
+				0666,
+			)
+			if err != nil {
+				fmt.Println(err)
+			}
+			if i == 0 {
+				torrent.FileTrial = file
+			}
+		}
+	}
+
+	torrent.FileTrial.Seek(50, 0)
+	torrent.FileTrial.Write([]byte("aaaa"))
+	torrent.FileTrial.Seek(0, 0)
+	torrent.FileTrial.Write([]byte("aaaa"))
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
@@ -132,7 +195,8 @@ func (c *Client) addTorrent(filename string) {
 		piece.Index = i
 		piece.BlockMap = make(map[uint32]*Block)
 		numBlocks := int(math.Ceil(float64(torrent.PieceSize / BLOCKSIZE)))
-		piece.BitMap = make([]byte, int(math.Ceil(float64(numBlocks/8))))
+		piece.NumBlocks = numBlocks
+		piece.BitMap = createZerosBitMap(numBlocks)
 
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
@@ -230,7 +294,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		buf = buf[0:numRecved]
 		fmt.Println("....  RCVD  ....")
-		fmt.Println(buf)
+		// fmt.Println(buf)
 		fmt.Println(".......")
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
@@ -241,18 +305,18 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			payload := make([]byte, 0)
 
 			if msgLen > 0 {
-				fmt.Println("== LOOK HERE ==")
-				fmt.Println(numRecved)
-				fmt.Println(msgLen)
-				fmt.Println(recvId)
-				fmt.Println("===========")
+				// fmt.Println("== LOOK HERE ==")
+				// fmt.Println(numRecved)
+				// fmt.Println(msgLen)
+				// fmt.Println(recvId)
+				// fmt.Println("===========")
 				payload = buf[5 : 5+msgLen]
 			}
 
-			fmt.Println("======  RECEIVED PAYLOAD ====")
-			fmt.Println(recvId)
-			fmt.Println(payload)
-			fmt.Println("===========")
+			// fmt.Println("======  RECEIVED PAYLOAD ====")
+			// fmt.Println(recvId)
+			// fmt.Println(payload)
+			// fmt.Println("===========")
 
 			// STATE MACHINE HERE
 			c.FunctionMap[int(recvId)](peer, torrent, payload)
@@ -366,7 +430,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
 			fmt.Println(err)
 			peerPortNum += 1
-			continue
+			return false
 		}
 
 		// Client transmit first message to server
@@ -410,12 +474,12 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
-	data := createRequestMsg(b.PieceIndex, b.Offset)
+	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
 	(*p.Connection).Write(data)
 	p.BlockQueue.Enqueue(b)
 }
 
-func createRequestMsg(pieceIndex int, byteOffset int) []byte {
+func createRequestMsg(pieceIndex int, byteOffset int, byteSize int) []byte {
 	data := make([]byte, 0)
 	tmp := make([]byte, 4)
 	binary.BigEndian.PutUint32(tmp, uint32(13))
@@ -425,7 +489,7 @@ func createRequestMsg(pieceIndex int, byteOffset int) []byte {
 	data = append(data, tmp...)
 	binary.BigEndian.PutUint32(tmp, uint32(byteOffset))
 	data = append(data, tmp...)
-	binary.BigEndian.PutUint32(tmp, uint32(BLOCKSIZE))
+	binary.BigEndian.PutUint32(tmp, uint32(byteSize))
 	data = append(data, tmp...)
 	fmt.Println(data)
 	return data
