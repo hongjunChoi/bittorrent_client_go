@@ -5,6 +5,7 @@ type Piece struct {
 	BlockMap  map[uint32]*Block
 	BitMap    []byte
 	NumBlocks int
+	FileMap   []*File
 }
 
 type Block struct {
@@ -12,4 +13,10 @@ type Block struct {
 	Data       []byte
 	PieceIndex int
 	Size       int
+}
+
+type File struct {
+	FileName  string
+	startIndx int64
+	endIndx   int64
 }

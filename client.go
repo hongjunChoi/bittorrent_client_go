@@ -92,6 +92,49 @@ func main() {
 
 }
 
+//returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
+func (c *Client) checkAlreadyDownloaded(torrent *Torrent) []bool {
+	hash := torrent.MetaInfo.Info.Pieces
+	numPiece := len(hash) / 20
+	bitMap := make([]bool, numPiece)
+
+	for i := 0; i < numPiece; i++ {
+		piece := torrent.PieceMap[uint32(i)]
+
+		for j := 0; j < len(piece.FileMap); j++ {
+			filename := piece.FileMap[j].FileName
+			startIndex := piece.FileMap[j].startIndx
+			endIndex := piece.FileMap[j].endIndx
+
+			file, err := os.Open(filename)
+			if err != nil {
+				fmt.Println("==== ERROR READING FILE ====")
+				bitMap[i] = false
+				break
+			}
+
+			b := make([]byte, endIndex-startIndex+1)
+			n := 0
+			n, err = file.ReadAt(b, startIndex)
+
+			if err != nil {
+				fmt.Println("======    ERROR IN READING FILE TO CHECK ALREADY EXIST     ========")
+				fmt.Println(err)
+				bitMap[i] = false
+				break
+			}
+
+			if checkHash(b[0:n], hash[i*20:(i+1)*20]) {
+				bitMap[i] = true
+			} else {
+				bitMap[j] = false
+				break
+			}
+		}
+	}
+	return bitMap
+}
+
 func createClient() *Client {
 	client := new(Client)
 	client.Id = url.QueryEscape(generatePeerId())
@@ -131,6 +174,7 @@ func (c *Client) addTorrent(filename string) {
 	fmt.Println(metaInfo.Info.Length)
 
 	torrent := new(Torrent)
+	torrent.MetaInfo = metaInfo
 
 	numFiles := len(metaInfo.Info.Files)
 	if numFiles > 0 {
@@ -214,14 +258,22 @@ func (c *Client) addTorrent(filename string) {
 	}
 
 	//DIVIDE WORK AMONG PEERS HERE
+	downloadMap := c.checkAlreadyDownloaded(torrent)
 
 	for i := 0; i < torrent.NumPieces; i++ {
-		// for pieceIndex, piece := range torrent.PieceMap {
+		if downloadMap[i] {
+			continue
+		}
+
 		pieceIndex := i
 		piece := torrent.PieceMap[uint32(pieceIndex)]
 		pieceCount := torrent.NumPieces
+		count := 0
 
-		for _, peer := range torrent.PeerList {
+		for {
+			peer := torrent.PeerList[count%(len(torrent.PeerList))]
+			count += 1
+
 			//if peer bit map in index of currnet piece is 1 then give all piece blocks to peer
 			bitShiftIndex := 7 - (pieceIndex % 8)
 			bitmapIndex := pieceIndex / 8
@@ -237,6 +289,8 @@ func (c *Client) addTorrent(filename string) {
 				for _, block := range piece.BlockMap {
 					torrent.PeerWorkMap[peer] = append(torrent.PeerWorkMap[peer], block)
 				}
+
+				break
 			}
 		}
 
@@ -306,7 +360,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		}
 
 		buf = buf[0:numRecved]
-
 
 		//IF RECVED MSG IS NOT KEEP ALIVE
 		if numRecved > 0 && buf[4] != 0 {
@@ -492,6 +545,20 @@ func (p *Peer) sendRequestMessage(b *Block) {
 	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
 	(*p.Connection).Write(data)
 	p.BlockQueue.Enqueue(b)
+}
+
+func createHaveMsg(pieceIndex int) []byte {
+	data := make([]byte, 0)
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(5))
+	data = append(data, tmp...)
+	data = append(data, uint8(4))
+
+	pIndex := make([]byte, 4)
+	binary.BigEndian.PutUint32(pIndex, uint32(pieceIndex))
+	data = append(data, pIndex...)
+
+	return data
 }
 
 func createRequestMsg(pieceIndex int, byteOffset int, byteSize int) []byte {

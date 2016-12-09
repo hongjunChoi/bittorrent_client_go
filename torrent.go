@@ -20,6 +20,7 @@ type Torrent struct {
 	PieceMap       map[uint32]*Piece
 	BlockSize      uint32
 	FileTrial      *os.File
+	MetaInfo       *MetaInfo
 }
 
 func (t *Torrent) initBitMap() {
@@ -33,6 +34,20 @@ func setBit(n int, pos uint) int {
 
 func getBit(n uint8, pos int) uint8 {
 	return (n >> uint(pos)) & 1
+}
+
+func (torrent *Torrent) sendHaving(piece *Piece) {
+	pieceIndex := piece.Index
+	msg := createHaveMsg(pieceIndex)
+	for _, peer := range torrent.PeerList {
+		conn := *peer.Connection
+		_, err := conn.Write(msg)
+		if err != nil {
+			fmt.Println("==== error in sending have message for seeding to peers =========")
+			fmt.Println(err)
+		}
+	}
+
 }
 
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
