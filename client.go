@@ -254,7 +254,13 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 		count := 0
 
 		for {
+			if count >= len(torrent.PeerList){
+				return
+			}
 			peer := torrent.PeerList[count%(len(torrent.PeerList))]
+			fmt.Println("dividing work")
+			fmt.Println(peer)
+
 			count += 1
 
 			//if peer bit map in index of currnet piece is 1 then give all piece blocks to peer
@@ -348,9 +354,15 @@ func (c *Client) peerListHandShake(torrent *Torrent) {
 			deleteIndex := getPeerIndex(torrent, peer)
 			torrent.PeerList = append(torrent.PeerList[:deleteIndex], torrent.PeerList[deleteIndex+1:]...)
 			fmt.Println("hand shake failed...")
+		} else {
+			torrent.PeerList = make([]*Peer, 0)
+			torrent.PeerList = append(torrent.PeerList, peer)
+			go keepPeerListAlive(torrent)
+			return
 		}
 	}
-	go keepPeerListAlive(torrent)
+	// fmt.Println(torrent.PeerList)
+	// go keepPeerListAlive(torrent)
 }
 
 func (p *Peer) sendKeepAlive() {
@@ -362,10 +374,11 @@ func (p *Peer) sendKeepAlive() {
 //sends KEEP ALIVE to each peer periodically
 func keepPeerListAlive(torrent *Torrent) {
 	for {
+		time.Sleep(30 * time.Second)
 		for _, p := range torrent.PeerList {
+			fmt.Println(p)
 			p.sendKeepAlive()
 		}
-		time.Sleep(30 * time.Second)
 	}
 }
 
@@ -546,7 +559,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	peerPortNum := peer.RemotePeerPort
 	infohash := torrent.InfoHash
 
-	for peerPortNum < 6889 {
+	// for peerPortNum < 6889 {
 		fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
 		conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(2)*time.Second)
 		if err != nil {
@@ -610,8 +623,8 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 		fmt.Println("RECVED bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
 		fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
 		return true
-	}
-	return false
+	// }
+	// return false
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
