@@ -300,6 +300,7 @@ func (c *Client) addTorrent(filename string) {
 	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
 	torrent.MetaInfo = metaInfo
 
+	fmt.Println("======= ", torrent.NumPieces, " PIECES TOTAL ==========")
 	for i := 0; i < torrent.NumPieces; i++ {
 		torrent.BlockOffsetMap[uint32(i)] = 0
 	}
@@ -307,7 +308,8 @@ func (c *Client) addTorrent(filename string) {
 	torrent.initBitMap()
 
 	trackerUrl := metaInfo.Announce
-
+	fmt.Println(metaInfo.AnnounceList)
+	trackerUrl = metaInfo.AnnounceList[1][0]
 	data := parseMetaInfo(metaInfo)
 	data["peer_id"] = c.Id
 
@@ -384,9 +386,8 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 	fmt.Println(interestMsg)
 	fmt.Println("waiting for  response after sending our interested msg..")
-	fmt.Println(fmt.Println(time.Now().Format(time.RFC850)))
+	// fmt.Println(fmt.Println(time.Now().Format(time.RFC850)))
 	messageBuffer := make([]byte, 0)
-
 	for {
 		// fmt.Println("waiting ... ")
 		buf := make([]byte, 20000)
@@ -402,12 +403,11 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		buf = buf[0:numReceived]
 
-		if numReceived == 0{
+		if numReceived == 0 {
 			fmt.Println(" ===== KEEP ALIVE MSG =====")
-			messageBuffer = make([]byte, 0)
+			fmt.Println(len(messageBuffer))
 			continue
 		}
-
 
 		messageBuffer = append(messageBuffer, buf...)
 
@@ -415,14 +415,22 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		numBytesLeft = uint32(len(messageBuffer) - 4)
 		// fmt.Println("RECEIVED!!!")
-		if (msgLen == 0){
+		if msgLen == 0 {
 			fmt.Println("====== HELLO MESSAGE!!! ======= \n\n")
+			fmt.Println(buf)
+			if numBytesLeft > 0 {
+				messageBuffer = messageBuffer[4:]
+			} else {
+				messageBuffer = make([]byte, 0)
+			}
+			continue
 		}
-		for msgLen <= numBytesLeft && numBytesLeft != 0{
+
+		for msgLen <= numBytesLeft && numBytesLeft != 0 {
 			// fmt.Println("==== message =====")
 			payload := make([]byte, 0)
 			recvId := messageBuffer[4]
-			payload = messageBuffer[5 : 5+msgLen - 1]
+			payload = messageBuffer[5 : 5+msgLen-1]
 			// fmt.Println(msgLen)
 			// fmt.Println(len(payload))
 			// fmt.Println(payload)
@@ -435,7 +443,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 				// fmt.Println(messageBuffer)
 			} else {
 				messageBuffer = make([]byte, 0)
-				numBytesLeft = 0 
+				numBytesLeft = 0
 				// fmt.Println("=== end of message buffer")
 			}
 			c.FunctionMap[int(recvId)](peer, torrent, payload)
@@ -540,7 +548,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 	for peerPortNum < 6889 {
 		fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
-		conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(100)*time.Second)
+		conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(2)*time.Second)
 		if err != nil {
 			fmt.Println("====   ERROR IN PEER HANDSHAKE   =====")
 			fmt.Println(err)
@@ -572,10 +580,9 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 		if peer.RemotePeerId != recvPeerId || infohash != recvInfoHash {
 			fmt.Println("=== INCORRECT VALUE FROM HANDSHAKE ======")
-			fmt.Println(peer.RemotePeerId)
-			fmt.Println(recvPeerId)
-			fmt.Println(infohash)
-			fmt.Println(recvInfoHash)
+			fmt.Println(len(buf))
+			fmt.Println(buf)
+			fmt.Println(string(buf))
 			fmt.Println("================")
 			conn.Close()
 			return false
@@ -586,6 +593,9 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 		bitMapBuf := make([]byte, 256)
 		numRecved := 0
+
+		interestMsg := createInterestMsg()
+		_, err = conn.Write(interestMsg)
 		numRecved, err = conn.Read(bitMapBuf)
 
 		if err != nil && err != io.EOF {

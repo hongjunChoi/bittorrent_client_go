@@ -58,11 +58,11 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
 	fmt.Println(len(torrent.PeerWorkMap[peer]))
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 20; i++ {
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
 	}
-	peer.CurrentBlock = 25
+	peer.CurrentBlock = 20
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -146,17 +146,33 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
 
-		pieceBuf := make([]byte, torrent.PieceSize)
+		// pieceMapByteIndx := int(piece.Index / 8)
+		// pieceMapBitIndx := int(pieceIndex % 8)
+		// pieceByteValue := torrent.BitMap[pieceMapByteIndx]
+		// flipPieceByteValue := setBit(int(pieceByteValue), uint(pieceMapBitIndx))
+		// torrent.BitMap[pieceMapByteIndx] = byte(flipPieceByteValue)
+
+		// completePieceMap := createOnesBitMap(torrent.NumPieces)
+		// if bytes.Compare(completeMap, piece.BitMap)) == 0{
+		// 	fmt.Println("=============")
+		// }
+		// torrent.PieceMap
+		pieceBuf := make([]byte, 0)
 		for i := 0; i < piece.NumBlocks; i++ {
 			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
 		}
+
+		fmt.Println("=== all pieces added to buffer === ")
 		fileMap := piece.FileMap
 		numFiles := len(piece.FileMap)
 		start := int64(0)
 		end := int64(0)
+		fmt.Println("piece :", piece.Index)
 		for i := 0; i < numFiles; i++ {
+			fmt.Println("----- writing to file", fileMap[i].FileName)
+			fmt.Println("insert to ", fileMap[i].startIndx)
 			if i != 0 {
-				fmt.Println("finished downloading ", fileMap[i].FileName)
+				fmt.Println("finished downloading.. new file:  ", fileMap[i].FileName)
 				fmt.Println(time.Now().Format(time.RFC850))
 			}
 			file, err := os.OpenFile(
@@ -170,7 +186,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 				fmt.Println(err)
 			}
 			file.Write(pieceBuf[start:end])
-			defer file.Close()
+			file.Close()
 			start = end
 		}
 
@@ -193,12 +209,15 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	// REMOVE BLOCK FROM BLOCk QUEUE
 	b := peer.BlockQueue.Dequeue()
 	if uint32(b.(*Block).Offset) != byteOffset {
+		fmt.Println(byteOffset)
+		// fmt.Println(b.(*Block).)
 		fmt.Println("======= WEIRD POPING FROM BLOCK QUEUE =========")
 	}
 
 	//GET NEW BLOCK TO REQUEST
 	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
 	peer.CurrentBlock += 1
+	fmt.Println(toRequest.PieceIndex)
 	peer.sendRequestMessage(toRequest)
 	//ADD TO C
 
