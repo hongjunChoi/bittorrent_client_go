@@ -190,6 +190,8 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			start = end
 		}
 
+		torrent.sendHaving(piece)
+
 		// Write bytes to file
 		// file.Seek(0, 0)
 		// byteSlice := []byte("Bytes!\n")
@@ -206,6 +208,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		// }
 		// fmt.Println("Wrote %d bytes.\n", bytesWritten)
 	}
+
 	// REMOVE BLOCK FROM BLOCk QUEUE
 	b := peer.BlockQueue.Dequeue()
 	if uint32(b.(*Block).Offset) != byteOffset {
