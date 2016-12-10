@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"time"
 )
 
 type Torrent struct {
@@ -57,11 +58,11 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
 	fmt.Println(len(torrent.PeerWorkMap[peer]))
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 25; i++ {
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
 	}
-	peer.CurrentBlock = 2
+	peer.CurrentBlock = 25
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -102,8 +103,6 @@ func createOnesBitMap(bits int) []byte {
 		}
 		bitMap[length-1] = byte(byteVal)
 	}
-	fmt.Println("-------")
-	fmt.Println(bitMap)
 	return bitMap
 }
 
@@ -139,25 +138,14 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
 
 	//CHECK IF PIECE IS FULL
-	fmt.Println("----------")
-	fmt.Println(piece.NumBlocks)
 	completeMap := createOnesBitMap(piece.NumBlocks)
-	fmt.Println("pieceVal: ", piece.Index)
-	fmt.Println("offsetVal: ", byteOffset)
-	fmt.Println("bitMap: ", piece.BitMap)
+	// fmt.Println("pieceVal: ", piece.Index)
+	// fmt.Println("offsetVal: ", byteOffset)
+	// fmt.Println("bitMap: ", piece.BitMap)
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
-		// GET CORRECT FILE
 
-		// GET CORRECT BYTE OFFSET and SEEK
-
-		// WRITE TO FILE ALL BYTES
-
-		// n, err := f.WriteString(text)
-
-		// f.Close()
-		// Open a new file for writing only
 		pieceBuf := make([]byte, torrent.PieceSize)
 		for i := 0; i < piece.NumBlocks; i++ {
 			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
@@ -167,6 +155,10 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		start := int64(0)
 		end := int64(0)
 		for i := 0; i < numFiles; i++ {
+			if i != 0 {
+				fmt.Println("finished downloading ", fileMap[i].FileName)
+				fmt.Println(time.Now().Format(time.RFC850))
+			}
 			file, err := os.OpenFile(
 				fileMap[i].FileName,
 				os.O_WRONLY,
