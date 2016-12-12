@@ -61,7 +61,7 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		if i >= len(torrent.PeerWorkMap[peer]) {
 			return
 		}
@@ -70,7 +70,7 @@ func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 		peer.sendRequestMessage(b)
 	}
 	peer.WorkMapLock.Lock()
-	peer.CurrentBlock = 10
+	peer.CurrentBlock = 20
 	peer.WorkMapLock.Unlock()
 
 }

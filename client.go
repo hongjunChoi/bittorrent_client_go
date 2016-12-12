@@ -343,8 +343,6 @@ func (torrent *Torrent) handleTracker(id string) {
 	for {
 		time.Sleep(time.Duration(torrent.TrackerInterval) * time.Second)
 
-		//update tracker
-
 		boolMap := torrent.checkAlreadyDownloaded()
 		downloaded := int64(0)
 		left := int64(0)
@@ -407,89 +405,6 @@ func keepPeerListAlive(torrent *Torrent) {
 		}
 	}
 }
-
-// func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
-// 	conn := *peer.Connection
-
-// 	// 2) SEND INTERESTED MSG
-// 	fmt.Println("sending interested msg to peer ...")
-// 	interestMsg := createInterestMsg()
-// 	_, err := conn.Write(interestMsg)
-
-// 	if err != nil {
-// 		fmt.Println("==== ERROR IN WRITING INTERESTED MSG ======")
-// 		fmt.Println(err)
-// 		fmt.Println("============")
-// 		return
-// 	}
-
-// 	fmt.Println(interestMsg)
-// 	fmt.Println("waiting for  response after sending our interested msg..")
-// 	// fmt.Println(fmt.Println(time.Now().Format(time.RFC850)))
-// 	messageBuffer := make([]byte, 0)
-// 	for {
-// 		// fmt.Println("waiting ... ")
-// 		buf := make([]byte, 20000)
-// 		var numBytesLeft uint32
-
-// 		numReceived := 0
-// 		numReceived, err = conn.Read(buf)
-
-// 		if err != nil && err != io.EOF {
-// 			fmt.Println("read error from peer..  :", err)
-// 			return
-// 		}
-
-// 		buf = buf[0:numReceived]
-
-// 		if numReceived == 0 {
-// 			fmt.Println(" ===== KEEP ALIVE MSG =====")
-// 			fmt.Println(len(messageBuffer))
-// 			continue
-// 		}
-
-// 		messageBuffer = append(messageBuffer, buf...)
-
-// 		msgLen := binary.BigEndian.Uint32(messageBuffer[0:4])
-
-// 		numBytesLeft = uint32(len(messageBuffer) - 4)
-// 		// fmt.Println("RECEIVED!!!")
-// 		if msgLen == 0 {
-// 			fmt.Println("====== HELLO MESSAGE!!! ======= \n\n")
-// 			fmt.Println(buf)
-// 			if numBytesLeft > 0 {
-// 				messageBuffer = messageBuffer[4:]
-// 			} else {
-// 				messageBuffer = make([]byte, 0)
-// 			}
-// 			continue
-// 		}
-
-// 		for msgLen <= numBytesLeft && numBytesLeft != 0 {
-// 			// fmt.Println("==== message =====")
-// 			payload := make([]byte, 0)
-// 			recvId := messageBuffer[4]
-// 			payload = messageBuffer[5 : 5+msgLen-1]
-// 			// fmt.Println(msgLen)
-// 			// fmt.Println(len(payload))
-// 			// fmt.Println(payload)
-// 			//still left in buffer
-// 			if numBytesLeft > msgLen {
-// 				messageBuffer = messageBuffer[4+msgLen:]
-// 				msgLen = binary.BigEndian.Uint32(messageBuffer[0:4])
-// 				numBytesLeft = uint32(len(messageBuffer) - 4)
-// 				// fmt.Println("=== new message buffer : ")
-// 				// fmt.Println(messageBuffer)
-// 			} else {
-// 				messageBuffer = make([]byte, 0)
-// 				numBytesLeft = 0
-// 				// fmt.Println("=== end of message buffer")
-// 			}
-// 			c.FunctionMap[int(recvId)](peer, torrent, payload)
-// 		}
-// 	}
-
-// }
 
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	conn := *peer.Connection
