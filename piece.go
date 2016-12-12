@@ -1,5 +1,9 @@
 package main
 
+import (
+	"strconv"
+)
+
 type Piece struct {
 	Index     int
 	BlockMap  map[uint32]*Block
@@ -19,4 +23,8 @@ type File struct {
 	FileName  string
 	startIndx int64
 	endIndx   int64
+}
+
+func (b *Block) createBlockKey() string {
+	return strconv.Itoa(b.PieceIndex) + "_" + strconv.Itoa(b.Offset)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -60,11 +61,18 @@ func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 10; i++ {
+		if i >= len(torrent.PeerWorkMap[peer]) {
+			return
+		}
+
 		b := torrent.PeerWorkMap[peer][i]
 		peer.sendRequestMessage(b)
 	}
-	peer.CurrentBlock = 20
+	peer.WorkMapLock.Lock()
+	peer.CurrentBlock = 10
+	peer.WorkMapLock.Unlock()
+
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
@@ -80,11 +88,11 @@ func (c *Client) handleHave(peer *Peer, torrent *Torrent, payload []byte) {
 }
 
 func (c *Client) handleBitfield(peer *Peer, torrent *Torrent, payload []byte) {
-
+	fmt.Println("===== HANDLE  BITFIELD   =======")
 }
 
 func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
-
+	fmt.Println("===== HANDLE  REQUEST   =======")
 }
 
 func createOnesBitMap(bits int) []byte {
@@ -124,7 +132,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
-
+	fmt.Println("=====    RECEIVED   PIECE INDEX : ", pieceIndex, "  /  BLOCK OFFSET : ", byteOffset, "   =======")
 	piece := torrent.PieceMap[pieceIndex]
 
 	//GET CORRESPONDING BLOCK AND SET DATA
@@ -139,23 +147,34 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
 
+	//DELETE BLOCK FROM SENDING QUEUE
+	key := strconv.Itoa(int(pieceIndex)) + "_" + strconv.Itoa(int(byteOffset))
+	peer.QueueLock.Lock()
+	b := peer.PeerQueueMap[key]
+	delete(peer.PeerQueueMap, key)
+	peer.QueueLock.Unlock()
+
+	if b == nil || uint32(b.Offset) != byteOffset {
+		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n======= WEIRD POPING FROM BLOCK QUEUE =========")
+		fmt.Println("recved  ...")
+		fmt.Println(pieceIndex)
+		fmt.Println(byteOffset)
+		fmt.Println("expected....")
+		fmt.Println(b)
+		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+		peer.WorkMapLock.Lock()
+		peer.sendRequestMessage(torrent.PeerWorkMap[peer][peer.CurrentBlock])
+		peer.CurrentBlock += 1
+		peer.WorkMapLock.Unlock()
+		return
+	}
+
 	//CHECK IF PIECE IS FULL
 	completeMap := createOnesBitMap(piece.NumBlocks)
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
-
-		// pieceMapByteIndx := int(piece.Index / 8)
-		// pieceMapBitIndx := int(pieceIndex % 8)
-		// pieceByteValue := torrent.BitMap[pieceMapByteIndx]
-		// flipPieceByteValue := setBit(int(pieceByteValue), uint(pieceMapBitIndx))
-		// torrent.BitMap[pieceMapByteIndx] = byte(flipPieceByteValue)
-
-		// completePieceMap := createOnesBitMap(torrent.NumPieces)
-		// if bytes.Compare(completeMap, piece.BitMap)) == 0{
-		// 	fmt.Println("=============")
-		// }
-		// torrent.PieceMap
 
 		pieceBuf := make([]byte, 0)
 		for i := 0; i < piece.NumBlocks; i++ {
@@ -184,44 +203,26 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			end = start + fileMap[i].endIndx - fileMap[i].startIndx
 			file.Seek(fileMap[i].startIndx, 0)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("ERROR IN WRITING TO FILE AFTER DOWNLOAD ... ", err)
 			}
+
 			file.Write(pieceBuf[start:end])
 			file.Close()
 			start = end
 		}
 
 		torrent.sendHaving(piece)
-
-		// Write bytes to file
-		// file.Seek(0, 0)
-		// byteSlice := []byte("Bytes!\n")
-		// bytesWritten, err := file.Write(byteSlice)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// }
-		// fmt.Println("Wrote %d bytes.\n", bytesWritten)
-
-		// file.Seek(20, 0)
-		// bytesWritten, err = file.Write(byteSlice)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// }
-		// fmt.Println("Wrote %d bytes.\n", bytesWritten)
-	}
-
-	// REMOVE BLOCK FROM BLOCk QUEUE
-	b := peer.BlockQueue.Dequeue()
-	if uint32(b.(*Block).Offset) != byteOffset {
-		fmt.Println(byteOffset)
-		fmt.Println("======= WEIRD POPING FROM BLOCK QUEUE =========")
 	}
 
 	//GET NEW BLOCK TO REQUEST
+	peer.WorkMapLock.Lock()
 	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
-	peer.CurrentBlock += 1
-	fmt.Println("requesting new peice block index : ", toRequest.PieceIndex)
 	peer.sendRequestMessage(toRequest)
+	peer.CurrentBlock += 1
+	peer.WorkMapLock.Unlock()
+
+	fmt.Println("requesting new peice block index : ", toRequest.PieceIndex, "   /  block offset : ", toRequest.Offset, " / queue size : ", len(peer.PeerQueueMap), "  \n\n")
+
 }
 
 func (c *Client) handleCancel(peer *Peer, torrent *Torrent, payload []byte) {

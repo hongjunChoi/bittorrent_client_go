@@ -7,24 +7,6 @@ import (
 	"time"
 )
 
-// type BlockQueue struct {
-// 	Queue []*Block
-// }
-
-// func NewBlockQueue() *BlockQueue {
-// 	queue := new(BlockQueue)
-// 	queue.Queue = make([]*Block, 0)
-// 	return queue
-// }
-
-// func (bq *BlockQueue) push(b *Block) {
-// 	bq.Queue = append(bq.Queue, b)
-// }
-
-// func (bq *BlockQueue) pop() *Block {
-
-// }
-
 func generatePeerId() string {
 	t := time.Now().Unix()
 	return strconv.FormatInt(t, 10) + RandStringBytes(10)
