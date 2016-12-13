@@ -262,6 +262,7 @@ func (torrent *Torrent) createDataBlocks() {
 				b.Size = int((totalSize - int64(i)*int64(torrent.PieceSize)) - int64(b.Offset))
 				b.Data = make([]byte, b.Size)
 			}
+
 			pieceSize += int64(b.Size)
 			piece.BlockMap[uint32(b.Offset)] = b
 		}
@@ -720,6 +721,29 @@ func (p *Peer) sendRequestMessage(b *Block) {
 	p.QueueLock.Unlock()
 }
 
+func (p *Peer) sendPieceMessage(indx uint32, begin uint32, block []byte) {
+	fmt.Println("sending piece message with payload")
+	data := createPieceMsg(indx, begin, block)
+	_, err := (*p.Connection).Write(data)
+	if err != nil {
+		fmt.Println("==== ERROR IN SENDING REQUEST MESG TO PEER  ======")
+		fmt.Println(err)
+		fmt.Println("==============")
+	}
+}
+
+func createPieceMsg(indx uint32, begin uint32, block []byte) []byte {
+	data := make([]byte, 0)
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(len(block)+9))
+	data = append(data, tmp...)
+	binary.BigEndian.PutUint32(tmp, uint32(indx))
+	data = append(data, tmp...)
+	binary.BigEndian.PutUint32(tmp, uint32(begin))
+	data = append(data, tmp...)
+	data = append(data, block...)
+	return data
+}
 func createHaveMsg(pieceIndex int) []byte {
 	data := make([]byte, 0)
 	tmp := make([]byte, 4)
