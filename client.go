@@ -72,12 +72,16 @@ func main() {
 
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
 func (torrent *Torrent) checkAlreadyDownloaded() []bool {
+	fmt.Println("===== IN CHECK ALREADY DOWNLOAD ======")
 	hash := torrent.MetaInfo.Info.Pieces
 	numPiece := len(hash) / 20
 	bitMap := make([]bool, numPiece)
 
 	for i := 0; i < numPiece; i++ {
 		piece := torrent.PieceMap[uint32(i)]
+
+		pieceHash := hash[i*20 : (i+1)*20]
+		pieceData := make([]byte, 0)
 
 		for j := 0; j < len(piece.FileMap); j++ {
 			filename := piece.FileMap[j].FileName
@@ -86,27 +90,28 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 
 			file, err := os.Open(filename)
 			if err != nil {
-
-				bitMap[i] = false
+				fmt.Println("111")
+				fmt.Println(err)
 				break
 			}
 
-			b := make([]byte, endIndex-startIndex+1)
-			n := 0
-			n, err = file.ReadAt(b, startIndex)
+			b := make([]byte, endIndex-startIndex)
+			_, err = file.ReadAt(b, startIndex)
 
 			if err != nil {
-
-				bitMap[i] = false
+				fmt.Println("222")
+				fmt.Println(err)
 				break
 			}
 
-			if checkHash(b[0:n], hash[i*20:(i+1)*20]) {
-				bitMap[i] = true
-			} else {
-				bitMap[j] = false
-				break
-			}
+			pieceData = append(pieceData, b...)
+		}
+
+		if checkHash(pieceData, pieceHash) {
+			bitMap[i] = true
+		} else {
+			bitMap[i] = false
+			fmt.Println("444")
 		}
 	}
 	return bitMap
@@ -151,6 +156,13 @@ func createFiles(metaInfo *MetaInfo) {
 		for i := 0; i < numFiles; i++ {
 			fmt.Println(metaInfo.Info.Files[i].Path)
 			fmt.Println(metaInfo.Info.Files[i].Length)
+
+			//IF FILE ALREADY EXIST THEN CONTINUE..
+			if _, err := os.Stat(generateFilePath(metaInfo.Info.Files[i].Path)); err == nil {
+				fmt.Println("file already exist!")
+				continue
+			}
+
 			//Create File
 			// Open a new file for writing only
 			file, err := os.OpenFile(
@@ -166,8 +178,15 @@ func createFiles(metaInfo *MetaInfo) {
 			file.Close()
 		}
 	} else {
+
 		path := make([]string, 1)
 		path[0] = metaInfo.Info.Name
+
+		//IF FILE ALREADY EXIST THEN CONTINUE..
+		if _, err := os.Stat(path[0]); err == nil {
+			fmt.Println("file already exist!")
+			return
+		}
 
 		file, err := os.OpenFile(
 			generateFilePath(path),

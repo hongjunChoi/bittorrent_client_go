@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -40,6 +41,9 @@ func checkHash(data []byte, hash string) bool {
 		sha1String[i] = sha1[i]
 	}
 
+	fmt.Println(len(sha1))
+	fmt.Println("expected hash : ", hash)
+	fmt.Println("calculated hash from local file : ", string(sha1String))
 	return string(sha1String) == hash
 
 }
