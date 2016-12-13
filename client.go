@@ -502,7 +502,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		size := binary.BigEndian.Uint32(sizeBuf[0:4])
 		if size == 0 {
-			fmt.Println("ALIVE MSG")
 			conn.Write(interestMsg)
 			continue
 		}
