@@ -25,6 +25,7 @@ type Torrent struct {
 	FileList        []*os.File
 	TrackerUrl      string
 	TrackerInterval int
+	ClientId        string
 }
 
 func (t *Torrent) initBitMap() {
@@ -134,6 +135,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
 	fmt.Println("=====    RECEIVED   PIECE INDEX : ", pieceIndex, "  /  BLOCK OFFSET : ", byteOffset, "   =======")
+
 	piece := torrent.PieceMap[pieceIndex]
 
 	//GET CORRESPONDING BLOCK AND SET DATA
@@ -210,6 +212,20 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 
 		torrent.sendHaving(piece)
+
+		downloadedMap := torrent.checkAlreadyDownloaded()
+		allComplete := true
+		for _, v := range downloadedMap {
+			if !v {
+				allComplete = false
+				break
+			}
+		}
+
+		if allComplete {
+			//SEND TRACKER COMPLETE
+			torrent.sendComplete()
+		}
 	}
 
 	//GET NEW BLOCK TO REQUEST

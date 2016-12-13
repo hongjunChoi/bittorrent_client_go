@@ -72,7 +72,6 @@ func main() {
 
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
 func (torrent *Torrent) checkAlreadyDownloaded() []bool {
-	fmt.Println("===== IN CHECK ALREADY DOWNLOAD ======")
 	hash := torrent.MetaInfo.Info.Pieces
 	numPiece := len(hash) / 20
 	bitMap := make([]bool, numPiece)
@@ -90,8 +89,6 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 
 			file, err := os.Open(filename)
 			if err != nil {
-				fmt.Println("111")
-				fmt.Println(err)
 				break
 			}
 
@@ -99,8 +96,6 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 			_, err = file.ReadAt(b, startIndex)
 
 			if err != nil {
-				fmt.Println("222")
-				fmt.Println(err)
 				break
 			}
 
@@ -111,7 +106,6 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 			bitMap[i] = true
 		} else {
 			bitMap[i] = false
-			fmt.Println("444")
 		}
 	}
 	return bitMap
@@ -254,6 +248,8 @@ func (torrent *Torrent) createDataBlocks() {
 			piece.BitMap = createZerosBitMap(numBlocks)
 		}
 
+		pieceSize := int64(0)
+
 		//CREATE BLOCKS FOR PIECE : MAKE SURE TO TAKE CARE OF LAST PEICE EDGE CASE
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
@@ -266,10 +262,11 @@ func (torrent *Torrent) createDataBlocks() {
 				b.Size = int((totalSize - int64(i)*int64(torrent.PieceSize)) - int64(b.Offset))
 				b.Data = make([]byte, b.Size)
 			}
-
+			pieceSize += int64(b.Size)
 			piece.BlockMap[uint32(b.Offset)] = b
 		}
 
+		piece.PieceSize = pieceSize
 		torrent.PieceMap[uint32(i)] = piece
 	}
 
@@ -328,6 +325,7 @@ func (c *Client) addTorrent(filename string) {
 	torrent.BlockOffsetMap = make(map[uint32]int64)
 	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
 	torrent.MetaInfo = metaInfo
+	torrent.ClientId = c.Id
 
 	fmt.Println("======= ", torrent.NumPieces, " PIECES TOTAL ==========")
 	if torrent.NumPieces == 0 {
@@ -371,11 +369,44 @@ func (c *Client) addTorrent(filename string) {
 		go c.handlePeerConnection(peer, torrent)
 	}
 
-	go torrent.handleTracker(c.Id)
+	go torrent.handleTracker()
 
 }
 
-func (torrent *Torrent) handleTracker(id string) {
+func (torrent *Torrent) getTotalSize() int64 {
+	size := int64(0)
+	for i := 0; i < int(torrent.NumPieces); i++ {
+		size += int64(torrent.PieceMap[uint32(i)].PieceSize)
+	}
+	return size
+
+}
+
+func (torrent *Torrent) sendComplete() {
+	fmt.Println("===== SENDING COMPLETE MSG TO TRACKER... ======")
+	trackerUrl := torrent.TrackerUrl
+	data := parseMetaInfo(torrent.MetaInfo)
+	data["peer_id"] = torrent.ClientId
+	data["left"] = strconv.FormatInt(0, 10)
+	data["downloaded"] = strconv.FormatInt(torrent.getTotalSize(), 10)
+	data["event"] = "completed"
+
+	url := createTrackerQuery(trackerUrl, data)
+	resp, err := http.Get(url)
+
+	if err != nil {
+		fmt.Println("error in contacing tracker every interval...")
+		return
+	}
+
+	fmt.Println("======== TRACKER RESPONSE AFTER SENDING COMPLTE =======")
+	fmt.Println(resp.Body)
+	fmt.Println("======================")
+
+	resp.Body.Close()
+}
+
+func (torrent *Torrent) handleTracker() {
 	for {
 		time.Sleep(time.Duration(torrent.TrackerInterval) * time.Second)
 
@@ -393,7 +424,7 @@ func (torrent *Torrent) handleTracker(id string) {
 
 		trackerUrl := torrent.TrackerUrl
 		data := parseMetaInfo(torrent.MetaInfo)
-		data["peer_id"] = id
+		data["peer_id"] = torrent.ClientId
 		data["left"] = strconv.FormatInt(left, 10)
 		data["downloaded"] = strconv.FormatInt(downloaded, 10)
 

@@ -7,6 +7,7 @@ import (
 
 type Piece struct {
 	Index      int
+	PieceSize  int64
 	BlockMap   map[uint32]*Block
 	BitMap     []byte
 	NumBlocks  int
