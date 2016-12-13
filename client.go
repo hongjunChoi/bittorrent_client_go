@@ -231,6 +231,7 @@ func (torrent *Torrent) createDataBlocks() {
 			bytesDownloaded := int64(i) * int64(torrent.PieceSize)
 			numBlocks = int(math.Ceil(float64(totalSize-bytesDownloaded) / float64(BLOCKSIZE)))
 			piece.NumBlocks = numBlocks
+			fmt.Println("number of blocks in the last piece  : ", numBlocks)
 			piece.BitMap = createZerosBitMap(numBlocks)
 		}
 

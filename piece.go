@@ -2,14 +2,16 @@ package main
 
 import (
 	"strconv"
+	"sync"
 )
 
 type Piece struct {
-	Index     int
-	BlockMap  map[uint32]*Block
-	BitMap    []byte
-	NumBlocks int
-	FileMap   []*File
+	Index      int
+	BlockMap   map[uint32]*Block
+	BitMap     []byte
+	NumBlocks  int
+	FileMap    []*File
+	BitMapLock sync.RWMutex
 }
 
 type Block struct {

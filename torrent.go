@@ -143,9 +143,11 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	bitMapByteIndx := int(byteOffset / BLOCKSIZE / 8)
 	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
 
+	piece.BitMapLock.Lock()
 	byteValue := piece.BitMap[bitMapByteIndx]
 	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
+	piece.BitMapLock.Unlock()
 
 	//DELETE BLOCK FROM SENDING QUEUE
 	key := strconv.Itoa(int(pieceIndex)) + "_" + strconv.Itoa(int(byteOffset))
