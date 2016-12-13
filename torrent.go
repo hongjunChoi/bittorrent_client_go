@@ -41,7 +41,7 @@ func getBit(n uint8, pos int) uint8 {
 }
 
 func (torrent *Torrent) sendHaving(piece *Piece) {
-	fmt.Println("SENDING HAVING MSG TO PEERS ")
+	fmt.Println("=======  SENDING HAVING MSG TO PEERS ======")
 	pieceIndex := piece.Index
 	msg := createHaveMsg(pieceIndex)
 	for _, peer := range torrent.PeerList {
@@ -164,14 +164,21 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n")
 
 		peer.WorkMapLock.Lock()
-		peer.sendRequestMessage(torrent.PeerWorkMap[peer][peer.CurrentBlock])
-		peer.CurrentBlock += 1
+		if peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+			peer.sendRequestMessage(torrent.PeerWorkMap[peer][peer.CurrentBlock])
+			peer.CurrentBlock += 1
+		}
 		peer.WorkMapLock.Unlock()
 		return
 	}
 
 	//CHECK IF PIECE IS FULL
 	completeMap := createOnesBitMap(piece.NumBlocks)
+
+	fmt.Println("======= LOOK  ========")
+	fmt.Println(completeMap)
+	fmt.Println(piece.BitMap)
+	fmt.Println("======================")
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
@@ -216,12 +223,14 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	//GET NEW BLOCK TO REQUEST
 	peer.WorkMapLock.Lock()
-	toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
-	peer.sendRequestMessage(toRequest)
-	peer.CurrentBlock += 1
-	peer.WorkMapLock.Unlock()
+	if peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+		toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
+		peer.sendRequestMessage(toRequest)
+		peer.CurrentBlock += 1
+		fmt.Println("requesting new peice block index : ", toRequest.PieceIndex, "   /  block offset : ", toRequest.Offset, " / queue size : ", len(peer.PeerQueueMap), "  \n\n")
+	}
 
-	fmt.Println("requesting new peice block index : ", toRequest.PieceIndex, "   /  block offset : ", toRequest.Offset, " / queue size : ", len(peer.PeerQueueMap), "  \n\n")
+	peer.WorkMapLock.Unlock()
 
 }
 

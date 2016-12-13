@@ -197,8 +197,12 @@ func (torrent *Torrent) createDataBlocks() {
 		byteIndx := int64(i) * torrent.PieceSize
 		pieceOffset := int64(0)
 		cursor := int64(0)
+		totalSize := int64(0)
+
+		//CREATE FILE MAPPING FOR EACH PIECE
 		for k := 0; k < len(fileDictList); k++ {
 			fileInfo := fileDictList[k]
+			totalSize += fileInfo.Length
 
 			if byteIndx < cursor+fileInfo.Length {
 				// start writing to file
@@ -221,6 +225,16 @@ func (torrent *Torrent) createDataBlocks() {
 			cursor += fileInfo.Length
 		}
 
+		//EDGE CASE FOR LAST PIECE WITH DIFFERENT SIZE AND THUS DIFFERENT NUM BLOCKS
+		if i == torrent.NumPieces-1 {
+			//TODO: for the last piece the size and NUMBLOCK is different!! recalculate
+			bytesDownloaded := int64(i) * int64(torrent.PieceSize)
+			numBlocks = int(math.Ceil(float64(totalSize-bytesDownloaded) / float64(BLOCKSIZE)))
+			piece.NumBlocks = numBlocks
+			piece.BitMap = createZerosBitMap(numBlocks)
+		}
+
+		//CREATE BLOCKS FOR PIECE : MAKE SURE TO TAKE CARE OF LAST PEICE EDGE CASE
 		for j := 0; j < numBlocks; j++ {
 			b := new(Block)
 			b.Offset = j * BLOCKSIZE
@@ -228,12 +242,13 @@ func (torrent *Torrent) createDataBlocks() {
 			b.Data = make([]byte, BLOCKSIZE)
 			b.Size = BLOCKSIZE
 
-			if j == numBlocks-1 {
-				b.Size = int(torrent.PieceSize) - b.Offset
+			if j == numBlocks-1 && i == torrent.NumPieces-1 {
+				b.Size = int((totalSize - int64(i)*int64(torrent.PieceSize)) - int64(b.Offset))
 			}
 
 			piece.BlockMap[uint32(b.Offset)] = b
 		}
+
 		torrent.PieceMap[uint32(i)] = piece
 	}
 
