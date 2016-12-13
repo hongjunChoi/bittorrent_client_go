@@ -177,10 +177,12 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	//CHECK IF PIECE IS FULL
 	completeMap := createOnesBitMap(piece.NumBlocks)
 
+	peer.WorkMapLock.Lock()
 	fmt.Println("======= LOOK  ========")
 	fmt.Println(completeMap)
 	fmt.Println(piece.BitMap)
 	fmt.Println("======================")
+	peer.WorkMapLock.Unlock()
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
