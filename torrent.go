@@ -111,6 +111,7 @@ func createOnesBitMap(bits int) []byte {
 		byteVal := 0
 		for i := 0; i < trailing; i++ {
 			byteVal += int(math.Pow(2, float64(pow)))
+			pow = pow - 1
 		}
 		bitMap[length-1] = byte(byteVal)
 	}
@@ -145,7 +146,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	piece.BitMapLock.Lock()
 	byteValue := piece.BitMap[bitMapByteIndx]
-	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
+	flipByteValue := setBit(int(byteValue), 7-uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
 	piece.BitMapLock.Unlock()
 
@@ -179,6 +180,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	peer.WorkMapLock.Lock()
 	fmt.Println("======= LOOK  ========")
+	fmt.Println(piece.NumBlocks)
 	fmt.Println(completeMap)
 	fmt.Println(piece.BitMap)
 	fmt.Println("======================")
