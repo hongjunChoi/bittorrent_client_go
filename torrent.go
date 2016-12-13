@@ -158,13 +158,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	peer.QueueLock.Unlock()
 
 	if b == nil || uint32(b.Offset) != byteOffset {
-		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n======= WEIRD POPING FROM BLOCK QUEUE =========")
-		fmt.Println("recved  ...")
-		fmt.Println(pieceIndex)
-		fmt.Println(byteOffset)
-		fmt.Println("expected....")
-		fmt.Println(b)
-		fmt.Println("\n\n\n\n\n\n\n\n\n\n\n\n\n")
 
 		peer.WorkMapLock.Lock()
 		if peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
@@ -177,14 +170,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	//CHECK IF PIECE IS FULL
 	completeMap := createOnesBitMap(piece.NumBlocks)
-
-	peer.WorkMapLock.Lock()
-	fmt.Println("======= LOOK  ========")
-	fmt.Println(piece.NumBlocks)
-	fmt.Println(completeMap)
-	fmt.Println(piece.BitMap)
-	fmt.Println("======================")
-	peer.WorkMapLock.Unlock()
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
 		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
