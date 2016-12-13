@@ -245,7 +245,9 @@ func (torrent *Torrent) createDataBlocks() {
 			if j == numBlocks-1 && i == torrent.NumPieces-1 {
 				b.Size = int((totalSize - int64(i)*int64(torrent.PieceSize)) - int64(b.Offset))
 			}
-
+			if piece.Index == 16 {
+				fmt.Println(b.Offset)
+			}
 			piece.BlockMap[uint32(b.Offset)] = b
 		}
 

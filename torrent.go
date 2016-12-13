@@ -144,7 +144,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	bitMapBitIndx := int(byteOffset/BLOCKSIZE) % 8
 
 	byteValue := piece.BitMap[bitMapByteIndx]
-	flipByteValue := setBit(int(byteValue), uint(bitMapBitIndx))
+	flipByteValue := setBit(8-int(byteValue), uint(bitMapBitIndx))
 	piece.BitMap[bitMapByteIndx] = byte(flipByteValue)
 
 	//DELETE BLOCK FROM SENDING QUEUE
