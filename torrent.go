@@ -114,6 +114,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			data := make([]byte, length)
 			_, err = file.ReadAt(data, start)
 			block = append(block, data...)
+			file.Close()
 			fmt.Println("break")
 			break
 		} else {
@@ -121,6 +122,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			_, err = file.ReadAt(data ,start)
 			length = length - (end - start)
 			block = append(block, data...)
+			file.Close()
 		}
 	}
 
