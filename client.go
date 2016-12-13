@@ -278,6 +278,7 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		if downloadMap[i] {
+			fmt.Println("ALREADY DOWNLOADED.. downloaded piece index : ", i)
 			continue
 		}
 

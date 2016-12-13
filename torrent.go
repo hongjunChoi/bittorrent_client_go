@@ -103,7 +103,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 
 	block := make([]byte, 0)
 
-	for fIndx := 0; fIndx<len(fileMap); fIndx++ {
+	for fIndx := 0; fIndx < len(fileMap); fIndx++ {
 		fmt.Println("checking file ")
 		file, err := os.Open(fileMap[fIndx].FileName)
 		if err != nil {
@@ -111,7 +111,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 		start := fileMap[fIndx].startIndx
 		end := fileMap[fIndx].endIndx
-		if end - start >= length {
+		if end-start >= length {
 			data := make([]byte, length)
 			_, err = file.ReadAt(data, start)
 			block = append(block, data...)
@@ -119,8 +119,8 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			fmt.Println("break")
 			break
 		} else {
-			data := make([]byte, end - start)
-			_, err = file.ReadAt(data ,start)
+			data := make([]byte, end-start)
+			_, err = file.ReadAt(data, start)
 			length = length - (end - start)
 			block = append(block, data...)
 			file.Close()
@@ -250,6 +250,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 		torrent.sendHaving(piece)
 
+		//IF ALL PEICES ARE DOWNLOADED THEN SEND COMPLETE MSG TO TRACKER
 		downloadedMap := torrent.checkAlreadyDownloaded()
 		allComplete := true
 		for _, v := range downloadedMap {
@@ -260,7 +261,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 
 		if allComplete {
-			//SEND TRACKER COMPLETE
 			torrent.sendComplete()
 		}
 	}
