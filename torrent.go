@@ -93,6 +93,40 @@ func (c *Client) handleBitfield(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("===== HANDLE  REQUEST   =======")
+	indx := binary.BigEndian.Uint32(payload[:4])
+	begin := binary.BigEndian.Uint32(payload[4:8])
+	length := int64(binary.BigEndian.Uint32(payload[8:12]))
+
+	fmt.Println("idx: ", indx, "begin: ", begin, "length: ", length)
+	fileMap := torrent.PieceMap[indx].FileMap
+
+	block := make([]byte, 0)
+
+	for fIndx := 0; fIndx<len(fileMap); fIndx++ {
+		fmt.Println("checking file ")
+		file, err := os.Open(fileMap[fIndx].FileName)
+		if err != nil {
+			fmt.Println("error opening file: ", fileMap[fIndx].FileName)
+		}
+		start := fileMap[fIndx].startIndx
+		end := fileMap[fIndx].endIndx
+		if end - start >= length {
+			data := make([]byte, length)
+			_, err = file.ReadAt(data, start)
+			block = append(block, data...)
+			fmt.Println("break")
+			break
+		} else {
+			data := make([]byte, end - start)
+			_, err = file.ReadAt(data ,start)
+			length = length - (end - start)
+			block = append(block, data...)
+		}
+	}
+
+	fmt.Println("payload block to send : ", block)
+
+	peer.sendPieceMessage(indx, begin, block)
 }
 
 func createOnesBitMap(bits int) []byte {
