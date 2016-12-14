@@ -609,7 +609,7 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 	peerData := make([]*Peer, len(peers)/6)
 
 	myIP := get_external_IP()
-
+	count := 0
 	for i := 0; i < len(peers)/6; i++ {
 		index := i * 6
 		ip := peers[index : index+4]
@@ -630,8 +630,8 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 		peer.BlockQueue = lane.NewQueue()
 		peer.PeerQueueMap = make(map[string](*Block))
 		peer.CurrentBlock = 0
-
-		peerData[i] = peer
+		peerData[count] = peer
+		count += 1
 	}
 
 	return peerData
