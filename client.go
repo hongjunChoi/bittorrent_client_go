@@ -211,54 +211,69 @@ func (c *Client) handleConnection(conn net.Conn) {
 		conn.Close()
 	}()
 
-	buf := make([]byte, 1024)
-	numBytes, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("read error from peer..  222:", err)
-		return
-	}
-	fmt.Println("------ received from seeding thread", buf[:numBytes])
-
-	if numBytes == 49 + int(buf[0]) {
-		fmt.Println("maybe handshake")
-		pstrlen := int(buf[0])
-		pstr := string(buf[1:pstrlen + 1])
-		resv := buf[pstrlen + 1 : pstrlen + 1 + 8]
-		info_hash := string(buf[pstrlen + 1 + 8: pstrlen + 1 + 8 + 20])
-		peer_id := buf[pstrlen + 1 + 8 + 20: pstrlen + 1 + 8 + 20 + 20]
-		fmt.Println("protocol: ", pstr)
-		fmt.Println("reserved: ", resv)
-		fmt.Println("info hash: ", info_hash)
-		fmt.Println("peer_id: ", peer_id)
-
-		numTorrents := len(c.TorrentList)
-		var t *Torrent
-		for i := 0; i < numTorrents; i++ {
-			torrent := c.TorrentList[i]
-			if torrent.InfoHash == info_hash{
-				fmt.Println("info hash matches.. start sending bitMap info")
-				t = torrent
-			}
-		}
-
-		if t != nil {
-			fmt.Println("sending handshake")
-			conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
-		}
-
-		conn.Write(createBitMapMsg(t))
-
-		buf = make([]byte, 1024)
+	var t *Torrent
+	var p *Peer
+	for {
+		buf := make([]byte, 1024)
 		numBytes, err := conn.Read(buf)
 		if err != nil {
 			fmt.Println("read error from peer..  222:", err)
 			return
 		}
-		fmt.Println("------ received after handshake", buf[:numBytes])
-		
-		conn.Write(createUnChokeMsg())
+		fmt.Println("------ received from seeding thread", buf[:numBytes])
 
+		if numBytes == 49 + int(buf[0]) {
+			fmt.Println("maybe handshake")
+			pstrlen := int(buf[0])
+			pstr := string(buf[1:pstrlen + 1])
+			resv := buf[pstrlen + 1 : pstrlen + 1 + 8]
+			info_hash := string(buf[pstrlen + 1 + 8: pstrlen + 1 + 8 + 20])
+			peer_id := buf[pstrlen + 1 + 8 + 20: pstrlen + 1 + 8 + 20 + 20]
+			fmt.Println("protocol: ", pstr)
+			fmt.Println("reserved: ", resv)
+			fmt.Println("info hash: ", info_hash)
+			fmt.Println("peer_id: ", peer_id)
 
+			numTorrents := len(c.TorrentList)
+			for i := 0; i < numTorrents; i++ {
+				torrent := c.TorrentList[i]
+				if torrent.InfoHash == info_hash{
+					fmt.Println("info hash matches.. start sending bitMap info")
+					t = torrent
+				}
+			}
+
+			if t != nil {
+				fmt.Println("sending handshake")
+				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
+			}
+
+			p = new(Peer)
+			*p.Connection = conn
+
+			conn.Write(createBitMapMsg(t))
+
+			buf = make([]byte, 1024)
+			numBytes, err := conn.Read(buf)
+			if err != nil {
+				fmt.Println("read error from peer..  222:", err)
+				return
+			}
+			fmt.Println("------ received after handshake", buf[:numBytes])
+			
+			conn.Write(createUnChokeMsg())
+
+		} else {
+			size := binary.BigEndian.Uint32(buf[0:4])
+			if size == 0 {
+				fmt.Println("----- alive message received in seeding thread", buf)
+				continue
+			}
+			protocol := buf[5]
+			data := buf[5:]
+
+			go c.FunctionMap[int(protocol)](p, t, data)
+		}
 	}
 }
 
