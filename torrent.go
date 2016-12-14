@@ -261,7 +261,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 
 		if allComplete {
-			fmt.Println("Add download complete for torrent  ", torrent.Name)
+			fmt.Println("\n\n\n\n\n\n =========   download complete for torrent  ", torrent.Name, "    ================\n\n\n\n\n\n")
 			torrent.sendComplete()
 		}
 	}
