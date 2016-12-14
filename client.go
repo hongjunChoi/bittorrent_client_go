@@ -270,19 +270,19 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 				go c.FunctionMap[int(protocol)](p, t, data)
 
-				if size == 1 && protocol == 2 {
-					//received interest message
-					fmt.Println("received interest msg")
-					conn.Write(createUnChokeMsg())
-				}
+				// if size == 1 && protocol == 2 {
+				// 	//received interest message
+				// 	fmt.Println("received interest msg")
+				// 	conn.Write(createUnChokeMsg())
+				// }
 
-				if (protocol == 5) {
-					fmt.Println("bitfield")
-				}
+				// if (protocol == 5) {
+				// 	fmt.Println("bitfield")
+				// }
 
-				if (protocol == 6) {
-					fmt.Println("request")
-				}
+				// if (protocol == 6) {
+				// 	fmt.Println("request")
+				// }
 
 
 
@@ -515,6 +515,14 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		if downloadMap[i] {
+		
+			byteIndx := int(i / 8)
+			bitIndx := int(i % 8)
+
+			byteVal := torrent.BitMap[byteIndx]
+			flipByteVal := setBit(int(byteVal), 7-uint(bitIndx))
+			torrent.BitMap[byteIndx] = byte(flipByteVal)
+
 			fmt.Println("ALREADY DOWNLOADED.. downloaded piece index : ", i)
 			continue
 		}
