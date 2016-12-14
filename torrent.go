@@ -11,6 +11,7 @@ import (
 )
 
 type Torrent struct {
+	Name            string
 	BlockOffsetMap  map[uint32]int64 //for each piece show unti where data is already downloaded (offset in bytes)
 	BitMap          []byte           //map that shows whether piece at index is downloaded or not
 	FileName        string
@@ -218,7 +219,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
 		}
 
-		fmt.Println("=== all pieces added to buffer === ")
 		fileMap := piece.FileMap
 		numFiles := len(piece.FileMap)
 		start := int64(0)
@@ -261,6 +261,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 
 		if allComplete {
+			fmt.Println("Add download complete for torrent  ", torrent.Name)
 			torrent.sendComplete()
 		}
 	}
@@ -271,7 +272,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
 		peer.sendRequestMessage(toRequest)
 		peer.CurrentBlock += 1
-		fmt.Println("requesting new peice block index : ", toRequest.PieceIndex, "   /  block offset : ", toRequest.Offset, " / queue size : ", len(peer.PeerQueueMap), "  \n\n")
 	}
 
 	peer.WorkMapLock.Unlock()

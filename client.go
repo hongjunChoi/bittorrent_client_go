@@ -3,6 +3,8 @@ package main
 import (
 	"./bencode-go"
 	"./datastructure"
+	"./shell"
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -14,10 +16,9 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-	"bufio"
-	"strings"
 )
 
 const (
@@ -35,6 +36,7 @@ const (
 )
 
 type Peer struct {
+	PeerChannel      chan bool
 	RemoteBitMap     []byte
 	SelfChoking      bool
 	SelfInterested   bool
@@ -60,20 +62,125 @@ type Client struct {
 
 func main() {
 	client := createClient()
-	args := os.Args
-	torrentName := args[1]
 	go startListeningToSeed()
-	client.addTorrent(torrentName)
 
-	//TODO: cli here
+	clientCommands := map[string]shell.Command{
+		"add":    shell.Command{client.addTorrent, "torrent add <torrent_file>", "add torrent and start downloading / seeding", 2},
+		"remove": shell.Command{client.removeTorrent, "torrent remove <torrend_id> ", "remove torrent ", 2},
+		"detail": shell.Command{client.showTorrentDetail, "torrent detail <torrent_id> ", "show detail of torrent ", 2},
+		"list":   shell.Command{client.listTorrent, "torrent list", "list all torrents ", 0},
+	}
+
+	var s shell.Shell
+	s.Done = make(chan bool)
+	go s.Interact(clientCommands)
+
 	for {
-		time.Sleep(100 * time.Second)
+		select {
+
+		case <-s.Done:
+			fmt.Println("quiting...")
+			//TODO: close everything here ...
+
+			return
+		}
+	}
+}
+
+func (c *Client) listTorrent(arg []string) {
+	fmt.Println("\tid,     name,     done,    files,    peers,   uploaded,   downloaded")
+	fmt.Println("======================================================================")
+
+	for i, torrent := range c.TorrentList {
+		downloadedMap := torrent.checkAlreadyDownloaded()
+		downloaded := true
+		downloadedBytes := int64(0)
+		uploadedBytes := int64(0)
+		for i, b := range downloadedMap {
+			if !b {
+				downloaded = false
+			} else {
+				downloadedBytes += torrent.PieceMap[uint32(i)].PieceSize
+			}
+		}
+
+		fmt.Println("\t", i, "\t", torrent.Name, "\t", downloaded, "\t", len(torrent.FileList), "\t", len(torrent.PeerList), "\t", uploadedBytes, "\t", downloaded)
+
+	}
+
+}
+
+func (c *Client) removeTorrent(arg []string) {
+	id, err := strconv.Atoi(arg[2])
+	if err != nil {
+		fmt.Println("Incorrect argument")
+		fmt.Println(err)
+		return
+	}
+
+	torrent := c.TorrentList[id]
+	for _, peer := range torrent.PeerList {
+		peer.closePeerConnection()
+	}
+
+	c.TorrentList = append(c.TorrentList[:id], c.TorrentList[id+1:]...)
+
+}
+
+func (c *Client) showTorrentDetail(arg []string) {
+	id, err := strconv.Atoi(arg[2])
+	if err != nil {
+		fmt.Println("Incorrect argument..")
+		return
+	}
+	fmt.Println("Listing information of torrent with id : ", arg)
+
+	torrent := c.TorrentList[id]
+	totalBytes := torrent.getTotalSize()
+	downloadedMap := torrent.checkAlreadyDownloaded()
+	downloadedBytes := int64(0)
+
+	for i, p := range torrent.PieceMap {
+		if downloadedMap[int(i)] {
+			downloadedBytes += p.PieceSize
+		}
+	}
+	fmt.Println("\n\n\n=======   GENERAL INFO    =======")
+	fmt.Println("\t torrent name : ", torrent.Name)
+	fmt.Println("\t client local peer ID : ", c.Id)
+	fmt.Println("\t total bytes : ", totalBytes)
+	fmt.Println("\t downloaded bytes : ", downloadedBytes)
+	fmt.Println("\t left bytes : ", totalBytes-downloadedBytes)
+	fmt.Println("\t number of pieces : ", torrent.NumPieces)
+	fmt.Println("\t number of files : ", len(torrent.FileList))
+	fmt.Println("\t tracker url : ", torrent.TrackerUrl)
+	fmt.Println("\t tracker interval : ", torrent.TrackerInterval)
+
+	fmt.Println("\n\n\n=======   FILE INFO    =======")
+	for i, _ := range torrent.FileList {
+		file := torrent.FileList[i]
+		fmt.Println("\t file name : ", file.Name())
+	}
+
+	fmt.Println("\n\n\n======= Piece Info ========")
+	for i := 0; i < torrent.NumPieces; i++ {
+		piece := torrent.PieceMap[uint32(i)]
+		fmt.Println("\n\npiece index : ", piece.Index)
+		fmt.Println("\t piece size : ", piece.PieceSize)
+		fmt.Println("\t piece block bitmap : ", piece.BitMap)
+		fmt.Println("\t piece downloaded or not : ", downloadedMap[i])
+	}
+
+	fmt.Println("\n\n\n======= Peer Info ==========")
+	for _, peer := range torrent.PeerList {
+		fmt.Println("\n\npeer id : ", peer.RemotePeerId)
+		fmt.Println("\t peer bitmap : ", peer.RemoteBitMap)
 	}
 
 }
 
 func startListeningToSeed() {
-	  // connect to this socket
+	// connect to this socket
 	fmt.Println("start listening on port 6881 for seeding...")
 
 	// listen on all interfaces
@@ -333,7 +440,9 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 	}
 }
 
-func (c *Client) addTorrent(filename string) {
+func (c *Client) addTorrent(arg []string) {
+	filename := arg[2]
+	fmt.Println("filename : ", filename)
 	metaInfo := new(MetaInfo)
 	metaInfo.ReadTorrentMetaInfoFile(filename)
 	fmt.Println("===== checking how many files")
@@ -345,6 +454,7 @@ func (c *Client) addTorrent(filename string) {
 	createFiles(metaInfo)
 
 	torrent := new(Torrent)
+	torrent.Name = filename
 	torrent.MetaInfo = metaInfo
 
 	torrent.NumPieces = len(metaInfo.Info.Pieces) / 20
@@ -474,7 +584,7 @@ func (c *Client) peerListHandShake(torrent *Torrent) {
 
 	for _, peer := range torrent.PeerList {
 		//IF handshake filed.
-		if c.connectToPeer(peer, torrent) {
+		if peer != nil && c.connectToPeer(peer, torrent) {
 			validPeers = append(validPeers, peer)
 		}
 	}
@@ -498,6 +608,11 @@ func keepPeerListAlive(torrent *Torrent) {
 			p.sendKeepAlive()
 		}
 	}
+}
+
+func (peer *Peer) closePeerConnection() {
+	peer.PeerChannel <- true
+	(*peer.Connection).Close()
 }
 
 func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
@@ -550,6 +665,17 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		data := payload[1:]
 
 		go c.FunctionMap[int(protocol)](peer, torrent, data)
+
+		select {
+		case flag := <-peer.PeerChannel:
+			if flag {
+				fmt.Println("closing peer connection ... ")
+				return
+			}
+
+		default:
+			continue
+		}
 	}
 
 }
@@ -616,15 +742,17 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 		port := peers[index+4 : index+6]
 
 		peer := new(Peer)
+		peer.PeerChannel = make(chan bool)
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
-		fmt.Println("IPS ---------- ")
 
+		fmt.Println("---------- IPS ---------- ")
 		fmt.Println(myIP)
 		fmt.Println(peer.RemotePeerIP)
-		if peer.RemotePeerIP == myIP{
+		if peer.RemotePeerIP == myIP {
 			fmt.Println("my IP Address in peer list")
 			continue
 		}
+
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
 		peer.BlockQueue = lane.NewQueue()

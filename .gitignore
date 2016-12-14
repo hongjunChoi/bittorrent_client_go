@@ -1,10 +1,9 @@
 .DS*
 node
 torrent/*
-data/torrent/
-data/torrent/*
-./data/torrent/
-./data/torrent/*
 ./down/*
+data/*
+/data/*
+./data/*
 down/*
 *.pem
