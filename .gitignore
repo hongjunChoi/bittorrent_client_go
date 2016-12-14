@@ -1,7 +1,7 @@
 .DS*
 node
 torrent/*
-./downFORNOW/*
+./down/*
 data/*
 data/torrent/*
 /data/*
