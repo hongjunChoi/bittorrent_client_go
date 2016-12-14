@@ -232,13 +232,21 @@ func (c *Client) handleConnection(conn net.Conn) {
 		fmt.Println("peer_id: ", peer_id)
 
 		numTorrents := len(c.TorrentList)
+		var t *Torrent
 		for i := 0; i < numTorrents; i++ {
 			torrent := c.TorrentList[i]
 			if torrent.InfoHash == info_hash{
 				fmt.Println("info hash matches.. start sending bitMap info")
-				conn.Write(torrent.BitMap)
+				t = torrent
 			}
 		}
+
+		if t != nil {
+			fmt.Println("sending handshake")
+			conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
+		}
+
+		conn.Write(createBitMapMsg(t))
 
 		buf = make([]byte, 1024)
 		numBytes, err := conn.Read(buf)
@@ -246,7 +254,11 @@ func (c *Client) handleConnection(conn net.Conn) {
 			fmt.Println("read error from peer..  222:", err)
 			return
 		}
-		fmt.Println("------ received after sending bitmap", buf[:numBytes])
+		fmt.Println("------ received after handshake", buf[:numBytes])
+		
+		conn.Write(createUnChokeMsg())
+
+
 	}
 }
 
