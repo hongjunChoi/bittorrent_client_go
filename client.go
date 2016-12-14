@@ -208,7 +208,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 	var t *Torrent
 	p := new(Peer)
 
-	*p.Connection = conn
+	p.Connection = &conn
 	readBuffer := make([]byte, 0)
 	for {
 		fmt.Println("waiting for peer request...")
