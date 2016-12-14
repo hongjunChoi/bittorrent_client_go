@@ -184,13 +184,13 @@ func startListeningToSeed() {
 	fmt.Println("start listening on port 6881 for seeding...")
 
 	// listen on all interfaces
-	ln, _ := net.Listen("tcp", ":6881")
+	ln, _ := net.Listen("tcp", ":6882")
 
 	// accept connection on port
-	conn, _ := ln.Accept()
 
 	// run loop forever (or until ctrl-c)
 	for {
+		conn, _ := ln.Accept()
 		// will listen for message to process ending in newline (\n)
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		// output message received
@@ -732,10 +732,9 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 	fmt.Println(peers)
 	fmt.Println("==========")
 
-	peerData := make([]*Peer, len(peers)/6)
+	peerData := make([]*Peer, 0)
 
 	myIP := get_external_IP()
-	count := 0
 	for i := 0; i < len(peers)/6; i++ {
 		index := i * 6
 		ip := peers[index : index+4]
@@ -758,8 +757,7 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 		peer.BlockQueue = lane.NewQueue()
 		peer.PeerQueueMap = make(map[string](*Block))
 		peer.CurrentBlock = 0
-		peerData[count] = peer
-		count += 1
+		peerData = append(peerData, peer)
 	}
 
 	return peerData
