@@ -111,8 +111,7 @@ func (c *Client) listTorrent(arg []string) {
 func (c *Client) removeTorrent(arg []string) {
 	id, err := strconv.Atoi(arg[2])
 	if err != nil {
-		fmt.Println("Incorrect argument")
-		fmt.Println(err)
+		fmt.Println("Incorrect argument. err : ", err)
 		return
 	}
 
@@ -122,7 +121,6 @@ func (c *Client) removeTorrent(arg []string) {
 	}
 
 	c.TorrentList = append(c.TorrentList[:id], c.TorrentList[id+1:]...)
-
 }
 
 func (c *Client) showTorrentDetail(arg []string) {
@@ -157,7 +155,7 @@ func (c *Client) showTorrentDetail(arg []string) {
 	fmt.Println("\n\n\n=======   FILE INFO    =======")
 	for i, _ := range torrent.FileList {
 		file := torrent.FileList[i]
-		fmt.Println("\t file name : ", file.Name())
+		fmt.Println("\t file name : ", file.FileName)
 	}
 
 	fmt.Println("\n\n\n======= Piece Info ========")
@@ -218,16 +216,17 @@ func (c *Client) handleConnection(conn net.Conn) {
 			fmt.Println("read error from peer..  222:", err)
 			return
 		}
+
 		fmt.Println("------ received from seeding thread", conn.RemoteAddr(), buf[:numBytes])
 		buf = buf[:numBytes]
-		if numBytes == 49 + int(buf[0]) {
+		if numBytes == 49+int(buf[0]) {
 
 			fmt.Println("maybe handshake")
 			pstrlen := int(buf[0])
-			pstr := string(buf[1:pstrlen + 1])
-			resv := buf[pstrlen + 1 : pstrlen + 1 + 8]
-			info_hash := string(buf[pstrlen + 1 + 8: pstrlen + 1 + 8 + 20])
-			peer_id := buf[pstrlen + 1 + 8 + 20: pstrlen + 1 + 8 + 20 + 20]
+			pstr := string(buf[1 : pstrlen+1])
+			resv := buf[pstrlen+1 : pstrlen+1+8]
+			info_hash := string(buf[pstrlen+1+8 : pstrlen+1+8+20])
+			peer_id := buf[pstrlen+1+8+20 : pstrlen+1+8+20+20]
 			fmt.Println("protocol: ", pstr)
 			fmt.Println("reserved: ", resv)
 			fmt.Println("info hash: ", info_hash)
@@ -236,7 +235,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 			numTorrents := len(c.TorrentList)
 			for i := 0; i < numTorrents; i++ {
 				torrent := c.TorrentList[i]
-				if torrent.InfoHash == info_hash{
+				if torrent.InfoHash == info_hash {
 					fmt.Println("info hash matches.. start sending bitMap info")
 					t = torrent
 				}
@@ -251,17 +250,17 @@ func (c *Client) handleConnection(conn net.Conn) {
 			conn.Write(bitMapMsg)
 
 		} else {
-			readBuffer = append(readBuffer, buf...)			
+			readBuffer = append(readBuffer, buf...)
 			size := binary.BigEndian.Uint32(buf[0:4])
 			if size == 0 {
 				fmt.Println("----- alive message received in seeding thread", buf)
 				continue
 			}
 			bufferLen := len(readBuffer)
-			for int(size) <= bufferLen - 4 {
+			for int(size) <= bufferLen-4 {
 				fmt.Println("---- msg ----")
 				protocol := readBuffer[4]
-				data := readBuffer[5: 5 + size - 1]
+				data := readBuffer[5 : 5+size-1]
 				fmt.Println("size: ", size)
 				fmt.Println("protocol: ", protocol)
 				fmt.Println("payload: ", data)
@@ -269,7 +268,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 				go c.FunctionMap[int(protocol)](p, t, data)
 
-				if int(size) == len(readBuffer) - 4 {
+				if int(size) == len(readBuffer)-4 {
 					fmt.Println("end of buffer")
 					readBuffer = make([]byte, 0)
 					bufferLen = 0
@@ -277,8 +276,8 @@ func (c *Client) handleConnection(conn net.Conn) {
 					break
 				} else {
 					fmt.Println("more left in buffer", bufferLen, size)
-					readBuffer = readBuffer[5 + size - 1:]
-					size =  binary.BigEndian.Uint32(readBuffer[0:4])
+					readBuffer = readBuffer[5+size-1:]
+					size = binary.BigEndian.Uint32(readBuffer[0:4])
 					bufferLen = len(readBuffer)
 					fmt.Println(readBuffer)
 				}
@@ -295,7 +294,6 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 	bitMap := make([]bool, numPiece)
 
 	for i := 0; i < numPiece; i++ {
-		fmt.Println("check same...")
 		piece := torrent.PieceMap[uint32(i)]
 
 		pieceHash := hash[i*20 : (i+1)*20]
@@ -441,7 +439,7 @@ func (torrent *Torrent) createDataBlocks() {
 				file := new(File)
 				file.FileName = generateFilePath(fileInfo.Path)
 				file.startIndx = byteIndx - cursor
-
+				torrent.FileList = append(torrent.FileList, file)
 				bytesLeftInFile := cursor + fileInfo.Length - byteIndx
 				piece.FileMap = append(piece.FileMap, file)
 
@@ -497,7 +495,7 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 
 	for i := 0; i < torrent.NumPieces; i++ {
 		if downloadMap[i] {
-		
+
 			byteIndx := int(i / 8)
 			bitIndx := int(i % 8)
 
@@ -522,6 +520,7 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 			bitShiftIndex := 7 - (pieceIndex % 8)
 			bitmapIndex := pieceIndex / 8
 			fmt.Println(peer.RemoteBitMap)
+
 			if getBit(peer.RemoteBitMap[bitmapIndex], int(bitShiftIndex)) == 1 {
 				for _, block := range piece.BlockMap {
 					torrent.PeerWorkMap[peer] = append(torrent.PeerWorkMap[peer], block)
@@ -556,6 +555,7 @@ func (c *Client) addTorrent(arg []string) {
 	torrent.PieceSize = metaInfo.Info.PieceLength
 	torrent.BlockOffsetMap = make(map[uint32]int64)
 	torrent.PeerWorkMap = make(map[*Peer]([]*Block))
+	torrent.FileList = make([]*File, 0)
 	torrent.MetaInfo = metaInfo
 	torrent.ClientId = c.Id
 
@@ -835,7 +835,7 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 		port := peers[index+4 : index+6]
 
 		peer := new(Peer)
-		peer.PeerChannel = make(chan bool)
+		peer.PeerChannel = make(chan bool, 1)
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
 
 		fmt.Println("---------- IPS ---------- ")
@@ -890,14 +890,13 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			peerPortNum += 1
 			continue
 		}
-		fmt.Println("---- tcp handshake complete.. starting peer handshake")
+		fmt.Println("---- tcp handshake complete.. starting peer handshake-----")
 
 		// Client transmit first message to server
 		firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
 		conn.Write(firstMsg)
 
 		//Recieve handshake
-
 		lengthBuf := make([]byte, 1)
 		_, err = conn.Read(lengthBuf)
 		if err != nil {
@@ -929,15 +928,6 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			return false
 		}
 
-		interestMsg := createInterestMsg()
-		_, err = conn.Write(interestMsg)
-		fmt.Println("interest msg sent")
-
-		if err != nil {
-			fmt.Println("error in writing  interest to peer : intesest msg. error  : ", err)
-			return false
-		}
-
 		peer.Connection = &conn
 
 		bitMapBuf := make([]byte, 4096)
@@ -948,17 +938,16 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			fmt.Println("error in reading bitmap of peer ,  error:", err)
 			return false
 		}
-		fmt.Println("received bitmap?")
 
 		bitMapBuf = bitMapBuf[0:numRecved]
 		bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4]) - 1
-		bitMapRecvProtocol := int(bitMapBuf[4])
+		if bitMapRecvLen == 0 {
+			return false
+		}
 
 		peer.RemoteBitMap = bitMapBuf[5 : 5+bitMapRecvLen]
-		fmt.Println("RECVED bitfield message complete...", bitMapRecvLen, bitMapRecvProtocol)
 		fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
-		fmt.Println("handshake complete...\n\n\n\n\n")
-
+		fmt.Println("handshake complete...\n\n\n")
 		return true
 
 	}

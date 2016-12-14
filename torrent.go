@@ -23,7 +23,7 @@ type Torrent struct {
 	PieceMap        map[uint32]*Piece
 	BlockSize       uint32
 	MetaInfo        *MetaInfo
-	FileList        []*os.File
+	FileList        []*File
 	TrackerUrl      string
 	TrackerInterval int
 	ClientId        string
