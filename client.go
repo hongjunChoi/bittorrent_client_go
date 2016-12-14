@@ -885,7 +885,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	infohash := torrent.InfoHash
 	count := 0
 
-	for count < 8 {
+	for count < 1 {
 		count += 1
 
 		fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
