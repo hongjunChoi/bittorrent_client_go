@@ -212,7 +212,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 	}()
 
 	var t *Torrent
-	var p *Peer
+	// var p *Peer
 	for {
 		buf := make([]byte, 1024)
 		numBytes, err := conn.Read(buf)
@@ -248,8 +248,8 @@ func (c *Client) handleConnection(conn net.Conn) {
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
 			}
 
-			p = new(Peer)
-			*p.Connection = conn
+			// p = new(Peer)
+			// p.Connection = conn
 
 			conn.Write(createBitMapMsg(t))
 
@@ -272,7 +272,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 			protocol := buf[5]
 			data := buf[5:]
 
-			go c.FunctionMap[int(protocol)](p, t, data)
+			// go c.FunctionMap[int(protocol)](, t, data)
 		}
 	}
 }
