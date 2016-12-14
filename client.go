@@ -308,6 +308,7 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 	bitMap := make([]bool, numPiece)
 
 	for i := 0; i < numPiece; i++ {
+		fmt.Println("check same...")
 		piece := torrent.PieceMap[uint32(i)]
 
 		pieceHash := hash[i*20 : (i+1)*20]
