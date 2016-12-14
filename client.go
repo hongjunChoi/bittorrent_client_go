@@ -507,7 +507,7 @@ func (torrent *Torrent) divideWork(downloadMap []bool) {
 			//if peer bit map in index of currnet piece is 1 then give all piece blocks to peer
 			bitShiftIndex := 7 - (pieceIndex % 8)
 			bitmapIndex := pieceIndex / 8
-
+			fmt.Println(peer.RemoteBitMap)
 			if getBit(peer.RemoteBitMap[bitmapIndex], int(bitShiftIndex)) == 1 {
 				for _, block := range piece.BlockMap {
 					torrent.PeerWorkMap[peer] = append(torrent.PeerWorkMap[peer], block)
