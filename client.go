@@ -267,24 +267,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("payload: ", data)
 				fmt.Println("do something with this protocol")
 
-
 				go c.FunctionMap[int(protocol)](p, t, data)
-
-				// if size == 1 && protocol == 2 {
-				// 	//received interest message
-				// 	fmt.Println("received interest msg")
-				// 	conn.Write(createUnChokeMsg())
-				// }
-
-				// if (protocol == 5) {
-				// 	fmt.Println("bitfield")
-				// }
-
-				// if (protocol == 6) {
-				// 	fmt.Println("request")
-				// }
-
-
 
 				if int(size) == len(readBuffer) - 4 {
 					fmt.Println("end of buffer")
