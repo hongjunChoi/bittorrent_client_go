@@ -134,7 +134,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 	}
 
-	fmt.Println("payload block to send : ", block)
+	// fmt.Println("payload block to send : ", block)
 
 	peer.sendPieceMessage(indx, begin, block)
 }
