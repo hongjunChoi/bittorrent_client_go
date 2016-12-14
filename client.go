@@ -239,6 +239,14 @@ func (c *Client) handleConnection(conn net.Conn) {
 				conn.Write(torrent.BitMap)
 			}
 		}
+
+		buf = make([]byte, 1024)
+		numBytes, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("read error from peer..  222:", err)
+			return
+		}
+		fmt.Println("------ received after sending bitmap", buf[:numBytes])
 	}
 }
 
