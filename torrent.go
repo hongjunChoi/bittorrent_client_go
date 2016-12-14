@@ -166,6 +166,12 @@ func createZerosBitMap(bits int) []byte {
 	return bitMap
 }
 
+func (piece *Piece) freeBlockMemory() {
+	for _, b := range piece.BlockMap {
+		b.Data = make([]byte, 0)
+	}
+}
+
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
@@ -264,6 +270,8 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			fmt.Println("\n\n\n\n\n\n =========   download complete for torrent  ", torrent.Name, "    ================\n\n\n\n\n\n")
 			torrent.sendComplete()
 		}
+
+		piece.freeBlockMemory()
 	}
 
 	//GET NEW BLOCK TO REQUEST

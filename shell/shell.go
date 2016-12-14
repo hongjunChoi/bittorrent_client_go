@@ -59,12 +59,18 @@ LOOP:
 			continue
 		}
 
+		if len(args) <= 1 {
+			fmt.Println("Not enough arguments..")
+			continue
+		}
+
 		switch args[1] {
 
 		case "help":
 			usage()
 
 		default:
+
 			cmd, ok := commands[args[1]]
 			if ok {
 				numargs := len(args) - 1

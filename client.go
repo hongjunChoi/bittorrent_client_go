@@ -102,7 +102,7 @@ func (c *Client) listTorrent(arg []string) {
 			}
 		}
 
-		fmt.Println("\t", i, "\t", torrent.Name, "\t", downloaded, "\t", len(torrent.FileList), "\t", len(torrent.PeerList), "\t", uploadedBytes, "\t", downloaded)
+		fmt.Println("\t", i, "\t", torrent.Name, "\t", downloaded, "\t", len(torrent.FileList), "\t", len(torrent.PeerList), "\t", uploadedBytes, "\t", downloadedBytes)
 
 	}
 
@@ -179,7 +179,7 @@ func (c *Client) showTorrentDetail(arg []string) {
 
 func (c *Client) startListeningToSeed() {
 	// Start listening to port 8888 for TCP connection
-	listener, err:= net.Listen("tcp", ":6881")
+	listener, err := net.Listen("tcp", ":6881")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -241,6 +241,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 		}
 	}
 }
+
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
 func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 	hash := torrent.MetaInfo.Info.Pieces
@@ -349,7 +350,7 @@ func createFiles(metaInfo *MetaInfo) {
 
 		//IF FILE ALREADY EXIST THEN CONTINUE..
 		if _, err := os.Stat(path[0]); err == nil {
-			fmt.Println("file already exist!")
+			fmt.Println("========   file already exist!   ======")
 			return
 		}
 
