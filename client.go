@@ -758,8 +758,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		protocol := payload[0]
 		data := payload[1:]
-		fmt.Println("received.... ", protocol ," : ", data)
-
 		go c.FunctionMap[int(protocol)](peer, torrent, data)
 
 		select {
@@ -848,10 +846,6 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 			continue
 		}
 
-		if peer.RemotePeerIP != "54.174.93.182" {
-			continue
-		}
-		fmt.Println("found...")
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
 		peer.BlockQueue = lane.NewQueue()
