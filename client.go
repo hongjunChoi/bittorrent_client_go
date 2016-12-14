@@ -59,7 +59,6 @@ type Client struct {
 }
 
 func main() {
-
 	client := createClient()
 	args := os.Args
 	torrentName := args[1]
@@ -609,6 +608,8 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 
 	peerData := make([]*Peer, len(peers)/6)
 
+	myIP := get_external_IP()
+
 	for i := 0; i < len(peers)/6; i++ {
 		index := i * 6
 		ip := peers[index : index+4]
@@ -616,6 +617,10 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 
 		peer := new(Peer)
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
+		if peer.RemotePeerIP == myIP{
+			fmt.Println("my IP Address in peer list")
+			continue
+		}
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
 		peer.BlockQueue = lane.NewQueue()

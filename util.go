@@ -5,6 +5,10 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+	"os"
+	"net/http"
+	"io/ioutil"
+	"fmt"
 )
 
 func generatePeerId() string {
@@ -24,6 +28,20 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 
+func get_external_IP() string{
+	resp, err := http.Get("http://checkip.amazonaws.com/")
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+		os.Stderr.WriteString("\n")
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+	if b, err := ioutil.ReadAll(resp.Body); err == nil {
+	    return string(b)
+	} 
+	fmt.Println("unable to retrieve external IP")
+	return ""
+}
 func getPeerIndex(torrent *Torrent, peer *Peer) int {
 	for i, p := range torrent.PeerList {
 		if p == peer {
