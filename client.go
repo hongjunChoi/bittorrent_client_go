@@ -286,22 +286,18 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 
 
-
-
-
-				if int(size) < bufferLen - 4{
-					readBuffer = readBuffer[5 + size - 1:]
-					size =  binary.BigEndian.Uint32(readBuffer[0:4])
-					bufferLen := len(readBuffer)
-					fmt.Println("more left in buffer", bufferLen, size)
-					fmt.Println(readBuffer)
-
-				} else {
+				if int(size) == len(readBuffer) - 4 {
+					fmt.Println("end of buffer")
 					readBuffer = make([]byte, 0)
 					bufferLen = 0
 					size = 0
-					fmt.Println("end of buffer")
 					break
+				} else {
+					fmt.Println("more left in buffer", bufferLen, size)
+					readBuffer = readBuffer[5 + size - 1:]
+					size =  binary.BigEndian.Uint32(readBuffer[0:4])
+					bufferLen = len(readBuffer)
+					fmt.Println(readBuffer)
 				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
