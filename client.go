@@ -271,6 +271,8 @@ func (c *Client) handleConnection(conn net.Conn) {
 			}
 			protocol := buf[5]
 			data := buf[5:]
+			fmt.Println("protocol: ", protocol)
+			fmt.Println("payload: ", data)
 
 			// go c.FunctionMap[int(protocol)](, t, data)
 		}
