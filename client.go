@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"bufio"
+	"strings"
 )
 
 const (
@@ -61,6 +63,7 @@ func main() {
 	client := createClient()
 	args := os.Args
 	torrentName := args[1]
+	go startListeningToSeed()
 	client.addTorrent(torrentName)
 
 	//TODO: cli here
@@ -68,6 +71,29 @@ func main() {
 		time.Sleep(100 * time.Second)
 	}
 
+}
+
+func startListeningToSeed() {
+	  // connect to this socket
+	fmt.Println("start listening on port 6881 for seeding...")
+
+	// listen on all interfaces
+	ln, _ := net.Listen("tcp", ":6881")
+
+	// accept connection on port
+	conn, _ := ln.Accept()
+
+	// run loop forever (or until ctrl-c)
+	for {
+		// will listen for message to process ending in newline (\n)
+		message, _ := bufio.NewReader(conn).ReadString('\n')
+		// output message received
+		fmt.Print("Message Received:", string(message))
+		// sample process for string received
+		newmessage := strings.ToUpper(message)
+		// send new string back to client
+		conn.Write([]byte(newmessage + "\n"))
+	}
 }
 
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
