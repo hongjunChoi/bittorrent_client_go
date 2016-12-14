@@ -3,6 +3,7 @@ node
 torrent/*
 ./down/*
 data/*
+data/torrent/*
 /data/*
 ./data/*
 down/*
