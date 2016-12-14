@@ -209,6 +209,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 	// var p *Peer
 	readBuffer := make([]byte, 0)
 	for {
+		fmt.Println("waiting for peer request...")
 		buf := make([]byte, 1024)
 		numBytes, err := conn.Read(buf)
 		if err != nil {
@@ -266,7 +267,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 				continue
 			}
 			bufferLen := len(readBuffer)
-			for size <= uint32(bufferLen - 4) {
+			for int(size) <= bufferLen - 4 {
 				fmt.Println("---- msg ----")
 				protocol := readBuffer[4]
 				data := readBuffer[5: 5 + size - 1]
@@ -277,6 +278,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 				if size == 1 && protocol == 2 {
 					//received interest message
+					fmt.Println("received interest msg")
 					conn.Write(createUnChokeMsg())
 				}
 				if size > uint32(bufferLen - 4){
@@ -288,8 +290,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 					bufferLen = 0
 					size = 0
 					fmt.Println("end of buffer")
-					fmt.Println(size)
-					fmt.Println(uint32(bufferLen - 4))
+					break
 				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
