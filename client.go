@@ -206,7 +206,9 @@ func (c *Client) handleConnection(conn net.Conn) {
 	fmt.Println("Handling new connection...")
 
 	var t *Torrent
-	// var p *Peer
+	var p *Peer
+
+	*p.Connection = conn
 	readBuffer := make([]byte, 0)
 	for {
 		fmt.Println("waiting for peer request...")
@@ -244,7 +246,6 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
 			}
-			t.BitMap = createOnesBitMap(t.NumPieces)
 			bitMapMsg := createBitMapMsg(t)
 			fmt.Println("sending ", bitMapMsg)
 			conn.Write(bitMapMsg)
@@ -265,6 +266,9 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("protocol: ", protocol)
 				fmt.Println("payload: ", data)
 				fmt.Println("do something with this protocol")
+
+
+				go c.FunctionMap[int(protocol)](p, t, data)
 
 				if size == 1 && protocol == 2 {
 					//received interest message
