@@ -79,6 +79,12 @@ func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("===== HANDLE INTERESTED =======")
+	conn := *peer.Connection
+	_, err := conn.Write(createUnChokeMsg())
+	if err != nil {
+		fmt.Println("==== error in sending unchoke")
+		fmt.Println(err)
+	}
 }
 
 func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent, payload []byte) {
