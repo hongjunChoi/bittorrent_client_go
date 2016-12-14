@@ -261,7 +261,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 			}
 			fmt.Println("------ received after handshake", buf[:numBytes])
 			
-			conn.Write(createUnChokeMsg())
+			// conn.Write(createUnChokeMsg())
 
 		} else {
 			size := binary.BigEndian.Uint32(buf[0:4])
@@ -269,11 +269,15 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("----- alive message received in seeding thread", buf)
 				continue
 			}
-			protocol := buf[5]
+			protocol := buf[4]
 			data := buf[5:]
+			fmt.Println("size: ", size)
 			fmt.Println("protocol: ", protocol)
 			fmt.Println("payload: ", data)
-
+			if size == 1 && protocol == 3 {
+				//received interest message
+				conn.Write(createUnChokeMsg())
+			}
 			// go c.FunctionMap[int(protocol)](, t, data)
 		}
 	}
