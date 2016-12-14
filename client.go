@@ -271,18 +271,27 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("----- alive message received in seeding thread", buf)
 				continue
 			}
-			for size >= uint32(len(readBuffer) - 4) {
+			bufferLen := len(readBuffer)
+			for size <= uint32(bufferLen - 4) {
 				protocol := readBuffer[4]
 				data := readBuffer[5: 5 + size - 1]
 				fmt.Println("size: ", size)
 				fmt.Println("protocol: ", protocol)
 				fmt.Println("payload: ", data)
-				if size == 1 && protocol == 3 {
+				fmt.Println("do something with this protocol")
+				if size == 1 && protocol == 2 {
 					//received interest message
 					conn.Write(createUnChokeMsg())
 				}
-				readBuffer = readBuffer[5 + size - 1:]
-				size =  binary.BigEndian.Uint32(readBuffer[0:4])
+				if size > uint32(bufferLen - 4){
+					readBuffer = readBuffer[5 + size - 1:]
+					size =  binary.BigEndian.Uint32(readBuffer[0:4])
+					fmt.Println("more left in buffer")
+				} else {
+					readBuffer = make([]byte, 0)
+					bufferLen = 0
+					size = 0
+				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
 		}
