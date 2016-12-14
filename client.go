@@ -104,7 +104,7 @@ func (c *Client) listTorrent(arg []string) {
 			}
 		}
 
-		fmt.Println("\t", i, "\t", torrent.Name, "\t", downloaded, "\t", len(torrent.FileList), "\t", len(torrent.PeerList), "\t", uploadedBytes, "\t", downloaded)
+		fmt.Println("\t", i, "\t", torrent.Name, "\t", downloaded, "\t", len(torrent.FileList), "\t", len(torrent.PeerList), "\t", uploadedBytes, "\t", downloadedBytes)
 
 	}
 
