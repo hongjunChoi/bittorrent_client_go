@@ -205,12 +205,6 @@ func (c *Client) startListeningToSeed() {
 func (c *Client) handleConnection(conn net.Conn) {
 	fmt.Println("Handling new connection...")
 
-	// Close connection when this function ends
-	defer func() {
-		fmt.Println("Closing connection...")
-		conn.Close()
-	}()
-
 	var t *Torrent
 	// var p *Peer
 	readBuffer := make([]byte, 0)
@@ -294,6 +288,8 @@ func (c *Client) handleConnection(conn net.Conn) {
 					bufferLen = 0
 					size = 0
 					fmt.Println("end of buffer")
+					fmt.Println(size)
+					fmt.Println(uint32(bufferLen - 4))
 				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
