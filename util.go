@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"fmt"
+	"strings"
 )
 
 func generatePeerId() string {
@@ -37,7 +38,7 @@ func get_external_IP() string{
 	}
 	defer resp.Body.Close()
 	if b, err := ioutil.ReadAll(resp.Body); err == nil {
-	    return string(b)
+	    return strings.TrimSpace(string(b))
 	} 
 	fmt.Println("unable to retrieve external IP")
 	return ""

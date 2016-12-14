@@ -617,6 +617,10 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 
 		peer := new(Peer)
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
+		fmt.Println("IPS ---------- ")
+
+		fmt.Println(myIP)
+		fmt.Println(peer.RemotePeerIP)
 		if peer.RemotePeerIP == myIP{
 			fmt.Println("my IP Address in peer list")
 			continue
