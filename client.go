@@ -4,7 +4,6 @@ import (
 	"./bencode-go"
 	"./datastructure"
 	"./shell"
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -180,28 +178,47 @@ func (c *Client) showTorrentDetail(arg []string) {
 }
 
 func startListeningToSeed() {
-	// connect to this socket
-	fmt.Println("start listening on port 6881 for seeding...")
+	// Start listening to port 8888 for TCP connection
+	listener, err:= net.Listen("tcp", ":6881")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	// listen on all interfaces
-	ln, _ := net.Listen("tcp", ":6882")
+	defer func() {
+		listener.Close()
+		fmt.Println("Listener closed")
+	}()
 
-	// accept connection on port
-
-	// run loop forever (or until ctrl-c)
 	for {
-		conn, _ := ln.Accept()
-		// will listen for message to process ending in newline (\n)
-		message, _ := bufio.NewReader(conn).ReadString('\n')
-		// output message received
-		fmt.Print("Message Received:", string(message))
-		// sample process for string received
-		newmessage := strings.ToUpper(message)
-		// send new string back to client
-		conn.Write([]byte(newmessage + "\n"))
+		// Get net.TCPConn object
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+
+		go handleConnection(conn)
 	}
 }
 
+func handleConnection(conn net.Conn) {
+	fmt.Println("Handling new connection...")
+
+	// Close connection when this function ends
+	defer func() {
+		fmt.Println("Closing connection...")
+		conn.Close()
+	}()
+
+	buf := make([]byte, 1024)
+	_, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("read error from peer..  222:", err)
+		return
+	}
+	fmt.Println("------ received from seeding thread", buf)
+}
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
 func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 	hash := torrent.MetaInfo.Info.Pieces
