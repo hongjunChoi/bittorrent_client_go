@@ -77,7 +77,7 @@ func startListeningToSeed() {
 	fmt.Println("start listening on port 6881 for seeding...")
 
 	// listen on all interfaces
-	ln, _ := net.Listen("tcp", ":6881")
+	ln, _ := net.Listen("tcp", ":6882")
 
 	// accept connection on port
 	conn, _ := ln.Accept()
