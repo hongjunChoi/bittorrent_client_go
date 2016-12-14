@@ -219,6 +219,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 		fmt.Println("------ received from seeding thread", conn.RemoteAddr(), buf[:numBytes])
 		buf = buf[:numBytes]
 		if numBytes == 49 + int(buf[0]) {
+
 			fmt.Println("maybe handshake")
 			pstrlen := int(buf[0])
 			pstr := string(buf[1:pstrlen + 1])
@@ -243,21 +244,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
 			}
-
-			// p = new(Peer)
-			// p.Connection = conn
-
 			conn.Write(createBitMapMsg(t))
-
-			// buf = make([]byte, 1024)
-			// numBytes, err := conn.Read(buf)
-			// if err != nil {
-			// 	fmt.Println("read error from peer..  222:", err)
-			// 	return
-			// }
-			// fmt.Println("------ received after handshake", buf[:numBytes])
-			
-			// conn.Write(createUnChokeMsg())
 
 		} else {
 			readBuffer = append(readBuffer, buf...)			
@@ -281,6 +268,18 @@ func (c *Client) handleConnection(conn net.Conn) {
 					fmt.Println("received interest msg")
 					conn.Write(createUnChokeMsg())
 				}
+
+				if (protocol == 5) {
+					fmt.Println("bitfield")
+				}
+
+				if (protocol == 6) {
+					fmt.Println("request")
+				}
+
+
+
+
 				if size > uint32(bufferLen - 4){
 					readBuffer = readBuffer[5 + size - 1:]
 					size =  binary.BigEndian.Uint32(readBuffer[0:4])
