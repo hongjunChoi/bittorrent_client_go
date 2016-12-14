@@ -244,6 +244,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
 			}
+			t.BitMap = createOnesBitMap(t.NumPieces)
 			bitMapMsg := createBitMapMsg(t)
 			fmt.Println("sending ", bitMapMsg)
 			conn.Write(bitMapMsg)
