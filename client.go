@@ -62,7 +62,7 @@ func main() {
 	client := createClient()
 	args := os.Args
 	torrentName := args[1]
-	go startListeningToSeed()
+	// go startListeningToSeed()
 	client.addTorrent(torrentName)
 
 	//TODO: cli here
@@ -80,10 +80,10 @@ func startListeningToSeed() {
 	ln, _ := net.Listen("tcp", ":6882")
 
 	// accept connection on port
-	conn, _ := ln.Accept()
 
 	// run loop forever (or until ctrl-c)
 	for {
+		conn, _ := ln.Accept()
 		// will listen for message to process ending in newline (\n)
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		// output message received
