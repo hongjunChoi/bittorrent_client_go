@@ -244,7 +244,9 @@ func (c *Client) handleConnection(conn net.Conn) {
 				fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
 			}
-			conn.Write(createBitMapMsg(t))
+			bitMapMsg := createBitMapMsg(t)
+			fmt.Println("sending ", bitMapMsg)
+			conn.Write(bitMapMsg)
 
 		} else {
 			readBuffer = append(readBuffer, buf...)			
@@ -277,7 +279,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 					fmt.Println("request")
 				}
 
-				
+
 
 
 
@@ -899,6 +901,8 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 		firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
 		conn.Write(firstMsg)
 
+		//Recieve handshake
+
 		lengthBuf := make([]byte, 1)
 		_, err = conn.Read(lengthBuf)
 		if err != nil {
@@ -932,6 +936,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 
 		interestMsg := createInterestMsg()
 		_, err = conn.Write(interestMsg)
+		fmt.Println("interest msg sent")
 
 		if err != nil {
 			fmt.Println("error in writing  interest to peer : intesest msg. error  : ", err)
@@ -948,6 +953,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			fmt.Println("error in reading bitmap of peer ,  error:", err)
 			return false
 		}
+		fmt.Println("received bitmap?")
 
 		bitMapBuf = bitMapBuf[0:numRecved]
 		bitMapRecvLen := binary.BigEndian.Uint32(bitMapBuf[:4]) - 1
