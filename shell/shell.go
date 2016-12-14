@@ -65,6 +65,11 @@ LOOP:
 			usage()
 
 		default:
+			if len(args) <= 1 {
+				fmt.Println("Not enough arguments..")
+				continue
+			}
+
 			cmd, ok := commands[args[1]]
 			if ok {
 				numargs := len(args) - 1
