@@ -598,6 +598,10 @@ func (c *Client) addTorrent(arg []string) {
 	torrent.divideWork(downloadMap)
 
 	for _, peer := range torrent.PeerList {
+		if len(torrent.PeerWorkMap[peer]) > 0 {
+			peer.SelfInterested = true
+		}
+
 		go c.handlePeerConnection(peer, torrent)
 	}
 
@@ -690,7 +694,6 @@ func (c *Client) peerListHandShake(torrent *Torrent) {
 }
 
 func (p *Peer) sendKeepAlive() {
-	fmt.Println("=== SENDING ALIVE MSG TO PEER ======")
 	conn := *p.Connection
 	conn.Write(make([]byte, 0))
 }
@@ -714,7 +717,6 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 	conn := *peer.Connection
 
 	// 2) SEND INTERESTED MSG
-	fmt.Println("sending interested msg to peer ...")
 	interestMsg := createInterestMsg()
 	_, err := conn.Write(interestMsg)
 
@@ -783,9 +785,6 @@ func parseMetaInfo(info *MetaInfo) map[string]string {
 	data["uploaded"] = "0"
 	data["downloaded"] = "0"
 	data["left"] = "0"
-	// data["compact"] = "0"
-	// data["no_peer_id"]
-	// data["event"]
 
 	return data
 }
@@ -794,7 +793,7 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 	url := createTrackerQuery(trackerUrl, data)
 	torrent.TrackerUrl = trackerUrl
 
-	fmt.Println("\n\n==========  CONTACINT TRACKER ========")
+	fmt.Println("\n\n==========  CONTACTING TRACKER ========")
 	fmt.Println(url)
 	fmt.Println("======================================\n\n")
 
@@ -956,6 +955,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
+	fmt.Println("sending request to peer .... ")
 	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
