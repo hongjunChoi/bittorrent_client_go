@@ -848,6 +848,10 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 			continue
 		}
 
+		if peer.RemotePeerIP != "54.174.93.182" {
+			continue
+		}
+		fmt.Println("found...")
 		peer.RemotePeerPort = binary.BigEndian.Uint16(port)
 		peer.RemotePeerId = ""
 		peer.BlockQueue = lane.NewQueue()
@@ -999,8 +1003,11 @@ func createPieceMsg(indx uint32, begin uint32, block []byte) []byte {
 	tmp := make([]byte, 4)
 	binary.BigEndian.PutUint32(tmp, uint32(len(block)+9))
 	data = append(data, tmp...)
+	data = append(data, uint8(7))
+	tmp = make([]byte, 4)
 	binary.BigEndian.PutUint32(tmp, uint32(indx))
 	data = append(data, tmp...)
+	tmp = make([]byte, 4)
 	binary.BigEndian.PutUint32(tmp, uint32(begin))
 	data = append(data, tmp...)
 	data = append(data, block...)
