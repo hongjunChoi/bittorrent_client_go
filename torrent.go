@@ -126,6 +126,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			fmt.Println("break")
 			break
 		} else {
+			fmt.Println("sending... ")
 			data := make([]byte, end-start)
 			_, err = file.ReadAt(data, start)
 			length = length - (end - start)
@@ -134,7 +135,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 	}
 
-	// fmt.Println("payload block to send : ", block)
+	fmt.Println("payload block to send : ", block)
 
 	peer.sendPieceMessage(indx, begin, block)
 }

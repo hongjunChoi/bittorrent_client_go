@@ -758,6 +758,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 
 		protocol := payload[0]
 		data := payload[1:]
+		fmt.Println("received.... ", protocol ," : ", data)
 
 		go c.FunctionMap[int(protocol)](peer, torrent, data)
 
