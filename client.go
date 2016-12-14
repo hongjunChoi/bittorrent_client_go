@@ -213,6 +213,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 	var t *Torrent
 	// var p *Peer
+	readBuffer := make([]byte, 0)
 	for {
 		buf := make([]byte, 1024)
 		numBytes, err := conn.Read(buf)
@@ -221,7 +222,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 			return
 		}
 		fmt.Println("------ received from seeding thread", buf[:numBytes])
-
+		buf = buf[:numBytes]
 		if numBytes == 49 + int(buf[0]) {
 			fmt.Println("maybe handshake")
 			pstrlen := int(buf[0])
@@ -253,30 +254,35 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 			conn.Write(createBitMapMsg(t))
 
-			buf = make([]byte, 1024)
-			numBytes, err := conn.Read(buf)
-			if err != nil {
-				fmt.Println("read error from peer..  222:", err)
-				return
-			}
-			fmt.Println("------ received after handshake", buf[:numBytes])
+			// buf = make([]byte, 1024)
+			// numBytes, err := conn.Read(buf)
+			// if err != nil {
+			// 	fmt.Println("read error from peer..  222:", err)
+			// 	return
+			// }
+			// fmt.Println("------ received after handshake", buf[:numBytes])
 			
 			// conn.Write(createUnChokeMsg())
 
 		} else {
+			readBuffer = append(readBuffer, buf...)			
 			size := binary.BigEndian.Uint32(buf[0:4])
 			if size == 0 {
 				fmt.Println("----- alive message received in seeding thread", buf)
 				continue
 			}
-			protocol := buf[4]
-			data := buf[5:]
-			fmt.Println("size: ", size)
-			fmt.Println("protocol: ", protocol)
-			fmt.Println("payload: ", data)
-			if size == 1 && protocol == 3 {
-				//received interest message
-				conn.Write(createUnChokeMsg())
+			for size >= uint32(len(readBuffer) - 4) {
+				protocol := readBuffer[4]
+				data := readBuffer[5: 5 + size - 1]
+				fmt.Println("size: ", size)
+				fmt.Println("protocol: ", protocol)
+				fmt.Println("payload: ", data)
+				if size == 1 && protocol == 3 {
+					//received interest message
+					conn.Write(createUnChokeMsg())
+				}
+				readBuffer = readBuffer[5 + size - 1:]
+				size =  binary.BigEndian.Uint32(readBuffer[0:4])
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
 		}
