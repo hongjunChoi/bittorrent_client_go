@@ -289,7 +289,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 
 
 
-				if int(size) > bufferLen - 4{
+				if int(size) < bufferLen - 4{
 					readBuffer = readBuffer[5 + size - 1:]
 					size =  binary.BigEndian.Uint32(readBuffer[0:4])
 					fmt.Println("more left in buffer")
