@@ -216,7 +216,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 			fmt.Println("read error from peer..  222:", err)
 			return
 		}
-		fmt.Println("------ received from seeding thread", buf[:numBytes])
+		fmt.Println("------ received from seeding thread", conn.RemoteAddr(), buf[:numBytes])
 		buf = buf[:numBytes]
 		if numBytes == 49 + int(buf[0]) {
 			fmt.Println("maybe handshake")
