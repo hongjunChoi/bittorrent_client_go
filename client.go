@@ -273,12 +273,14 @@ func (c *Client) handleConnection(conn net.Conn) {
 			}
 			bufferLen := len(readBuffer)
 			for size <= uint32(bufferLen - 4) {
+				fmt.Println("---- msg ----")
 				protocol := readBuffer[4]
 				data := readBuffer[5: 5 + size - 1]
 				fmt.Println("size: ", size)
 				fmt.Println("protocol: ", protocol)
 				fmt.Println("payload: ", data)
 				fmt.Println("do something with this protocol")
+
 				if size == 1 && protocol == 2 {
 					//received interest message
 					conn.Write(createUnChokeMsg())
@@ -291,6 +293,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 					readBuffer = make([]byte, 0)
 					bufferLen = 0
 					size = 0
+					fmt.Println("end of buffer")
 				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
