@@ -60,7 +60,7 @@ type Client struct {
 
 func main() {
 	client := createClient()
-	go startListeningToSeed()
+	go client.startListeningToSeed()
 
 	clientCommands := map[string]shell.Command{
 		"add":    shell.Command{client.addTorrent, "torrent add <torrent_file>", "add torrent and start downloading / seeding", 2},
@@ -177,7 +177,7 @@ func (c *Client) showTorrentDetail(arg []string) {
 
 }
 
-func startListeningToSeed() {
+func (c *Client) startListeningToSeed() {
 	// Start listening to port 8888 for TCP connection
 	listener, err:= net.Listen("tcp", ":6881")
 	if err != nil {
@@ -198,11 +198,11 @@ func startListeningToSeed() {
 			break
 		}
 
-		go handleConnection(conn)
+		go c.handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func (c *Client) handleConnection(conn net.Conn) {
 	fmt.Println("Handling new connection...")
 
 	// Close connection when this function ends
@@ -212,12 +212,34 @@ func handleConnection(conn net.Conn) {
 	}()
 
 	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+	numBytes, err := conn.Read(buf)
 	if err != nil {
 		fmt.Println("read error from peer..  222:", err)
 		return
 	}
-	fmt.Println("------ received from seeding thread", buf)
+	fmt.Println("------ received from seeding thread", buf[:numBytes])
+
+	if numBytes == 49 + int(buf[0]) {
+		fmt.Println("maybe handshake")
+		pstrlen := int(buf[0])
+		pstr := string(buf[1:pstrlen + 1])
+		resv := buf[pstrlen + 1 : pstrlen + 1 + 8]
+		info_hash := string(buf[pstrlen + 1 + 8: pstrlen + 1 + 8 + 20])
+		peer_id := buf[pstrlen + 1 + 8 + 20: pstrlen + 1 + 8 + 20 + 20]
+		fmt.Println("protocol: ", pstr)
+		fmt.Println("reserved: ", resv)
+		fmt.Println("info hash: ", info_hash)
+		fmt.Println("peer_id: ", peer_id)
+
+		numTorrents := len(c.TorrentList)
+		for i := 0; i < numTorrents; i++ {
+			torrent := c.TorrentList[i]
+			if torrent.InfoHash == info_hash{
+				fmt.Println("info hash matches.. start sending bitMap info")
+				conn.Write(torrent.BitMap)
+			}
+		}
+	}
 }
 //returns a list of boolean. if bool at index i is true, than piece [i] is already downloaded
 func (torrent *Torrent) checkAlreadyDownloaded() []bool {
@@ -813,6 +835,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 			peerPortNum += 1
 			continue
 		}
+		fmt.Println("---- tcp handshake complete.. starting peer handshake")
 
 		// Client transmit first message to server
 		firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
