@@ -249,14 +249,20 @@ func (c *Client) handleConnection(conn net.Conn) {
 			// fmt.Println("reserved: ", resv)
 			// fmt.Println("info hash: ", info_hash)
 			// fmt.Println("peer_id: ", peer_id)
-
+			exists := false
 			numTorrents := len(c.TorrentList)
 			for i := 0; i < numTorrents; i++ {
 				torrent := c.TorrentList[i]
 				if torrent.InfoHash == info_hash {
 					// fmt.Println("info hash matches.. start sending bitMap info")
 					t = torrent
+					exists = true
 				}
+			}
+
+			if !exists {
+				fmt.Println("torrent requested does not exist")
+				return
 			}
 
 			if t != nil {
@@ -1021,7 +1027,7 @@ func (p *Peer) sendRequestMessage(b *Block) {
 }
 
 func (p *Peer) sendPieceMessage(indx uint32, begin uint32, block []byte) {
-	// fmt.Println("sending piece message with payload")
+	fmt.Println("sending piece message with payload")
 	data := createPieceMsg(indx, begin, block)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
