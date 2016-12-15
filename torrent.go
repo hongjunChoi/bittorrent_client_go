@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 type Torrent struct {
@@ -23,7 +22,7 @@ type Torrent struct {
 	PieceMap        map[uint32]*Piece
 	BlockSize       uint32
 	MetaInfo        *MetaInfo
-	FileList        []*os.File
+	FileList        []*File
 	TrackerUrl      string
 	TrackerInterval int
 	ClientId        string
@@ -43,7 +42,6 @@ func getBit(n uint8, pos int) uint8 {
 }
 
 func (torrent *Torrent) sendHaving(piece *Piece) {
-	fmt.Println("=======  SENDING HAVING MSG TO PEERS ======")
 	pieceIndex := piece.Index
 	msg := createHaveMsg(pieceIndex)
 	for _, peer := range torrent.PeerList {
@@ -59,11 +57,14 @@ func (torrent *Torrent) sendHaving(piece *Piece) {
 
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("===== HANDLE CHOKE  =======")
+	peer.RemoteChoking = true
 }
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	fmt.Println("==== handle Unchoke =====")
-	for i := 0; i < 2; i++ {
+	peer.RemoteChoking = false
+
+	for i := 0; i < 20; i++ {
 		if i >= len(torrent.PeerWorkMap[peer]) {
 			return
 		}
@@ -72,13 +73,13 @@ func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 		peer.sendRequestMessage(b)
 	}
 	peer.WorkMapLock.Lock()
-	peer.CurrentBlock = 2
+	peer.CurrentBlock = 20
 	peer.WorkMapLock.Unlock()
 
 }
 
 func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE INTERESTED =======")
+	peer.RemoteInterested = true
 	conn := *peer.Connection
 	_, err := conn.Write(createUnChokeMsg())
 	if err != nil {
@@ -88,7 +89,8 @@ func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) 
 }
 
 func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent, payload []byte) {
-	// fmt.Println("===== HANDLE  NOT  INTERESTED =======")
+	peer.RemoteInterested = false
+	fmt.Println("===== HANDLE  NOT  INTERESTED =======")
 }
 
 func (c *Client) handleHave(peer *Peer, torrent *Torrent, payload []byte) {
@@ -130,6 +132,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			file.Close()
 		}
 	}
+
 	fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
 	peer.sendPieceMessage(indx, begin, block)
 }
@@ -174,11 +177,9 @@ func (piece *Piece) freeBlockMemory() {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
-
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
-	fmt.Println("=====    RECEIVED   PIECE INDEX : ", pieceIndex, "  /  BLOCK OFFSET : ", byteOffset, "   =======")
 
 	piece := torrent.PieceMap[pieceIndex]
 
@@ -207,7 +208,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	if b == nil || uint32(b.Offset) != byteOffset {
 
 		peer.WorkMapLock.Lock()
-		if peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+		if !peer.RemoteChoking && peer.SelfInterested && peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
 			peer.sendRequestMessage(torrent.PeerWorkMap[peer][peer.CurrentBlock])
 			peer.CurrentBlock += 1
 		}
@@ -219,7 +220,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	completeMap := createOnesBitMap(piece.NumBlocks)
 
 	if bytes.Compare(completeMap, piece.BitMap) == 0 {
-		fmt.Println("======= PIECE COMPLETE: ALL BLOCKS HAVE BEEN DOWNLOADED ======")
 
 		pieceBuf := make([]byte, 0)
 		for i := 0; i < piece.NumBlocks; i++ {
@@ -230,15 +230,9 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		numFiles := len(piece.FileMap)
 		start := int64(0)
 		end := int64(0)
-		fmt.Println("piece index :", piece.Index)
 
 		for i := 0; i < numFiles; i++ {
-			fmt.Println("----- writing to file", fileMap[i].FileName)
-			fmt.Println("insert to ", fileMap[i].startIndx)
-			if i != 0 {
-				fmt.Println("finished downloading.. new file:  ", fileMap[i].FileName)
-				fmt.Println(time.Now().Format(time.RFC850))
-			}
+
 			file, err := os.OpenFile(
 				fileMap[i].FileName,
 				os.O_WRONLY,
@@ -277,7 +271,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	//GET NEW BLOCK TO REQUEST
 	peer.WorkMapLock.Lock()
-	if peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+	if !peer.RemoteChoking && peer.SelfInterested && peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
 		toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
 		peer.sendRequestMessage(toRequest)
 		peer.CurrentBlock += 1
