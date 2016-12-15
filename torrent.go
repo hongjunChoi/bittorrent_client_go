@@ -146,14 +146,16 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		start := fileMap[fIndx].startIndx
 		end := fileMap[fIndx].endIndx
 		if end-start >= length {
+			file.Seek(start, 0)
 			data := make([]byte, length)
-			_, err = file.ReadAt(data, start)
+			_, err = file.Read(data)
 			block = append(block, data...)
 			file.Close()
 			break
 		} else {
 			data := make([]byte, end-start)
-			_, err = file.ReadAt(data, start)
+			file.Seek(start, 0)
+			_, err = file.Read(data)
 			length = length - (end - start)
 			block = append(block, data...)
 			file.Close()

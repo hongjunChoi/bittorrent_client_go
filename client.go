@@ -319,7 +319,6 @@ func (torrent *Torrent) checkAlreadyDownloaded() []bool {
 	hash := torrent.MetaInfo.Info.Pieces
 	numPiece := len(hash) / 20
 	bitMap := make([]bool, numPiece)
-
 	for i := 0; i < numPiece; i++ {
 		piece := torrent.PieceMap[uint32(i)]
 
