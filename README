@@ -44,7 +44,16 @@ login : hc121, hs48
 
 
 
-3) Seeding 
 
+3) piece  - File Mapping 
+    Each torrent contains a map of piece index - piece. Each Piece struct contains a list of files that represents where each piece's bytes are located within the file. Therefore, given each piece index and offset, we can retrieve corresponding file data. 
+    Also, each piece contains a block bitmap that represents whether particular block is downloaded or not. Thus, whenever each block is downloaded, we check if given piece's block bitmap is all 1's. If so, this means that all blocks are downloaded and we write the data to file location. 
+
+
+
+4) Seeding 
+    Once client adds torrent, we start to (i) download or (ii) if completed seed. Seeding works based on the fact that the files do exists and are verified. 
+
+    Once downloaded, we send the tracker Id that we have the files. Seeding begins when a peer begins handshake and requests a block. We already have a ‘fileList’ per piece, specifying which part of the files the piece is ranges. We seek to the part that we need, read the number of bytes necessary, and send off to the peer.
 
  
