@@ -207,6 +207,8 @@ func (c *Client) startListeningToSeed() {
 	for {
 		// Get net.TCPConn object
 		conn, err := listener.Accept()
+
+		fmt.Println("======== NEW CONNECTION SEEDING ====== \n\n")
 		if err != nil {
 			fmt.Println(err)
 			break
@@ -260,6 +262,9 @@ func (c *Client) handleConnection(conn net.Conn) {
 			if t != nil {
 				// fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
+				bitMapMsg := createBitMapMsg(t)
+				fmt.Println("sending ", bitMapMsg)
+				conn.Write(bitMapMsg)
 			}
 			bitMapMsg := createBitMapMsg(t)
 			// fmt.Println("sending ", bitMapMsg)
@@ -277,6 +282,7 @@ func (c *Client) handleConnection(conn net.Conn) {
 				// fmt.Println("---- msg ----")
 				protocol := readBuffer[4]
 				data := readBuffer[5 : 5+size-1]
+
 				// fmt.Println("size: ", size)
 				// fmt.Println("protocol: ", protocol)
 				// fmt.Println("payload: ", data)
@@ -1015,7 +1021,7 @@ func (p *Peer) sendRequestMessage(b *Block) {
 }
 
 func (p *Peer) sendPieceMessage(indx uint32, begin uint32, block []byte) {
-	fmt.Println("sending piece message with payload")
+	// fmt.Println("sending piece message with payload")
 	data := createPieceMsg(indx, begin, block)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
