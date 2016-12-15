@@ -133,7 +133,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 	indx := binary.BigEndian.Uint32(payload[:4])
 	begin := binary.BigEndian.Uint32(payload[4:8])
 	length := int64(binary.BigEndian.Uint32(payload[8:12]))
-
+	fmt.Println("data requested size:", length)
 	fileMap := torrent.PieceMap[indx].FileMap
 
 	block := make([]byte, 0)
@@ -159,7 +159,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			file.Close()
 		}
 	}
-
+	fmt.Println("data size: ", len(block))
 	fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
 	peer.sendPieceMessage(indx, begin, block)
 }
