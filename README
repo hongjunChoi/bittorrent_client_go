@@ -1,9 +1,16 @@
+CS168 
 BITTORRENT CLIENT
 
 login : hc121, hs48
 
 
-Tracker / Parsing Meta info
+1 ) Tracker / Parsing Meta info
+    Once client adds a torrent, we parse the torrent file to get tracker url and info dict. We use golang "bencode-go" library to parse bencoded text from tracker server. After we receive port and IP's of all peers, we establish TCP connection with each peers and conduct bittorent handshake. 
+
+    Each Peer Struct in our design has 4 variables, remote/local interested and remote/local choked. All requests are sent if and only if remote choke is set to false and local interest variable is set to true. 
+
+    After conducting handshake with peers, we start a new thread that sends keep alive message every 2 minutes. 
+    
 
 
 
@@ -12,19 +19,29 @@ Tracker / Parsing Meta info
 
 
 
-Downloading 
+2) Downloading 
  - dividing work among peers 
 
 
 
 
-- queue implementation to maximize thoroughput 
+ - choking and unchoking 
+
+
+
+
+ - avoiding already downloaded piece 
+
+
+
+
+ - queue implementation for lower latency  
 
 
 
 
 
-Seeding 
+3) Seeding 
 
 
  
