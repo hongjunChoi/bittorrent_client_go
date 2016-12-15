@@ -146,6 +146,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		start := fileMap[fIndx].startIndx
 		end := fileMap[fIndx].endIndx
 		if end - start < begin {
+			begin =- end - start
 			continue
 		}
 		if end - start + begin >= length {
