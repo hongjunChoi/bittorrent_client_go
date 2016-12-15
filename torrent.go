@@ -60,12 +60,10 @@ func (torrent *Torrent) sendHaving(piece *Piece) {
 }
 
 func (c *Client) handleChoke(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE CHOKE  =======")
 	peer.RemoteChoking = true
 }
 
 func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("==== handle Unchoke =====")
 	peer.RemoteChoking = false
 
 	for i := 0; i < 20; i++ {
@@ -113,7 +111,6 @@ func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) 
 
 func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent, payload []byte) {
 	peer.RemoteInterested = false
-	fmt.Println("===== HANDLE  NOT  INTERESTED =======")
 }
 
 func (c *Client) handleHave(peer *Peer, torrent *Torrent, payload []byte) {
@@ -142,20 +139,20 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 		start := fileMap[fIndx].startIndx
 		end := fileMap[fIndx].endIndx
-		if end - start < cursor {
+		if end-start < cursor {
 			cursor -= end - start
 			continue
 		}
-		if end - start - cursor >= length {
-			file.Seek(start + cursor, 0)
+		if end-start-cursor >= length {
+			file.Seek(start+cursor, 0)
 			data := make([]byte, length)
 			_, err = file.Read(data)
 			block = append(block, data...)
 			file.Close()
 			break
 		} else {
-			data := make([]byte, end - start - cursor)
-			file.Seek(start + cursor, 0)
+			data := make([]byte, end-start-cursor)
+			file.Seek(start+cursor, 0)
 			_, err = file.Read(data)
 			length = length - (end - start - cursor)
 			block = append(block, data...)
@@ -163,8 +160,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			file.Close()
 		}
 	}
-	// fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
-	// fmt.Println(block)
+
 	peer.sendPieceMessage(indx, uint32(begin), block)
 }
 
@@ -208,7 +204,6 @@ func (piece *Piece) freeBlockMemory() {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
-	// fmt.Println("recved data...")
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
@@ -243,8 +238,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			blockToRequest := torrent.getNextBlock(peer)
 			if blockToRequest != nil {
 				peer.sendRequestMessage(blockToRequest)
-			} else {
-				fmt.Println("NIL")
 			}
 		}
 		return
@@ -259,13 +252,7 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		for i := 0; i < piece.NumBlocks; i++ {
 			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
 		}
-		// ================================
-		//TODO: checking SHA1 HASH
-		// sha1Hash := torrent.MetaInfo.Info.Pieces[piece.Index*20 : (piece.Index+1)*20]
-		// isHashTrue := checkHash(pieceBuf, sha1Hash)
-		// fmt.Println("\n\n\n\n\n\n\n==== SHA1 HASH FOR DOWNLOADED DATA FOR PIECE WITH INDEX : ", piece.Index, "  IS  :", isHashTrue, "   ======\n\n\n\n\n\n\n")
 
-		// ================================
 		fileMap := piece.FileMap
 		numFiles := len(piece.FileMap)
 		start := int64(0)

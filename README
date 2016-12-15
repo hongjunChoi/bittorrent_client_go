@@ -26,14 +26,21 @@ login : hc121, hs48
 
 
  - avoiding already downloaded piece 
-    As soon as torrent is downloaded, we check if file already exists in our downloaded directory. 
+    As soon as torrent is downloaded, we check if file already exists in our downloaded directory. If file does not exist, or if SHA1 calculation does not match 20-length string given from the tracker, we mark that piece as not downloaded. 
+
+    We only insert blocks into linked list of blocks to request if the piece corresponding to the block is not downloaded. Therefore, if all pieces are downloaded, our bittorent client will not start the downloading process, and automatically start seeding. 
 
 
 
 
  - queue implementation for lower latency  
+    To lower latency, we keep a queue of request sent to each peer. We set queue size of 20 blocks and the resulting latency is approximately 0.5 MB per second. Everytime, we receive a piece from the remote peer, we delete the corresponding block from the queue , and everytime we request a new block to remote peer, we add the block to the queue. 
 
 
+ - After download is complete 
+    Everytime, each piece is completely downloaded, we send having message to all the peers. 
+    When all the files are downloaded, we send HTTP GET request to tracker with "event" key being "completed"
+    This enables us to start seeding to other peers. 
 
 
 
