@@ -159,14 +159,14 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			_, err = file.Read(data)
 			length = length - (end - start)
 			block = append(block, data...)
-			begin == 0
+			begin = 0
 			fmt.Println("to next file")
 			file.Close()
 		}
 	}
 	fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
 	fmt.Println(block)
-	peer.sendPieceMessage(indx, begin, block)
+	peer.sendPieceMessage(indx, uint32(begin), block)
 }
 
 func createOnesBitMap(bits int) []byte {
