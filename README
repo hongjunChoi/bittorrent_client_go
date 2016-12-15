@@ -15,22 +15,18 @@ login : hc121, hs48
 
 
 
-
-
-
-
 2) Downloading 
  - dividing work among peers 
+    We use link list as a datastructure to divide work among peers. Once all peers are done with handshake and once we have received unchoke from the peers, we put all data blocks of all pieces in a single linked list. 
 
+    Everytime, we handle "unchoke" or "request message" , we traverse the linked list from the head and see if remote peer's bitmap contains piece of the block. Then, we send request for the following block and remove block from the linked list. 
 
-
-
- - choking and unchoking 
-
+    Since multiple threads will be accessing / removing from the linked list, we used mutex to enforce consistency. 
 
 
 
  - avoiding already downloaded piece 
+    As soon as torrent is downloaded, we check if file already exists in our downloaded directory. 
 
 
 
