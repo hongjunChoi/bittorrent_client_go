@@ -155,7 +155,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			break
 		} else {
 			data := make([]byte, end - start + begin)
-			file.Seek(start, 0)
+			file.Seek(start + begin, 0)
 			_, err = file.Read(data)
 			length = length - (end - start)
 			block = append(block, data...)
