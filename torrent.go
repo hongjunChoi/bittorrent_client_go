@@ -257,7 +257,13 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 		for i := 0; i < piece.NumBlocks; i++ {
 			pieceBuf = append(pieceBuf, piece.BlockMap[uint32(i*BLOCKSIZE)].Data...)
 		}
+		// ================================
+		//TODO: checking SHA1 HASH
+		sha1Hash := torrent.MetaInfo.Info.Pieces[piece.Index*20 : (piece.Index+1)*20]
+		isHashTrue := checkHash(pieceBuf, sha1Hash)
+		fmt.Println("\n\n\n\n\n\n\n==== SHA1 HASH FOR DOWNLOADED DATA FOR PIECE WITH INDEX : ", piece.Index, "  IS  :", isHashTrue, "   ======\n\n\n\n\n\n\n")
 
+		// ================================
 		fileMap := piece.FileMap
 		numFiles := len(piece.FileMap)
 		start := int64(0)
