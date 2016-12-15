@@ -782,7 +782,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 		return
 	}
 
-	fmt.Println("waiting for  response after sending our interested msg..")
+	// fmt.Println("waiting for  response after sending our interested msg..")
 
 	for {
 		sizeBuf := make([]byte, 4)
@@ -806,7 +806,7 @@ func (c *Client) handlePeerConnection(peer *Peer, torrent *Torrent) {
 			bytesToAdd := 0
 			bytesToAdd, err = conn.Read(buf)
 			if err != nil {
-				fmt.Println("read error from peer..  222:", err)
+				fmt.Println("read error from peer: ", err)
 				return
 			}
 			numReceived += bytesToAdd
@@ -892,11 +892,8 @@ func (torrent *Torrent) get_peer_list(trackerUrl string, data map[string]string)
 		peer.PeerChannel = make(chan bool, 1)
 		peer.RemotePeerIP = net.IPv4(ip[0], ip[1], ip[2], ip[3]).String()
 
-		fmt.Println("---------- IPS ---------- ")
-		fmt.Println(myIP)
-		fmt.Println(peer.RemotePeerIP)
 		if peer.RemotePeerIP == myIP {
-			fmt.Println("my IP Address in peer list")
+//			fmt.Println("my IP Address in peer list")
 			continue
 		}
 
@@ -937,14 +934,14 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 	for count < 1 {
 		count += 1
 
-		fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
+		// fmt.Println("Conducting handshake to  : ", peerIP, " : ", peerPortNum, "   ......")
 		conn, err := net.DialTimeout("tcp", peerIP+":"+strconv.Itoa(int(peerPortNum)), time.Duration(1)*time.Second)
 		if err != nil {
-			fmt.Println("ERROR IN PEER TCP HANDSHAKE  : ", err)
+			// fmt.Println("ERROR IN PEER TCP HANDSHAKE  : ", err)
 			peerPortNum += 1
 			continue
 		}
-		fmt.Println("---- tcp handshake complete.. starting peer handshake-----")
+		// fmt.Println("---- tcp handshake complete.. starting peer handshake-----")
 
 		// Client transmit first message to server
 		firstMsg := createHandShakeMsg("BitTorrent protocol", infohash, c.Id)
@@ -1000,8 +997,8 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 		}
 
 		peer.RemoteBitMap = bitMapBuf[5 : 5+bitMapRecvLen]
-		fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
-		fmt.Println("handshake complete...\n\n\n")
+		// fmt.Println(bitMapBuf[5 : 5+bitMapRecvLen])
+		// fmt.Println("handshake complete...\n\n\n")
 		return true
 
 	}
@@ -1010,7 +1007,7 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
-	fmt.Println("requesting data to peer... piece index : ", b.PieceIndex, "  / byte offset : ", b.Offset)
+	// fmt.Println("requesting data to peer... piece index : ", b.PieceIndex, "  / byte offset : ", b.Offset)
 	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
@@ -1026,7 +1023,7 @@ func (p *Peer) sendRequestMessage(b *Block) {
 }
 
 func (p *Peer) sendPieceMessage(indx uint32, begin uint32, block []byte) {
-	fmt.Println("sending piece message with payload")
+	// fmt.Println("sending piece message with payload")
 	data := createPieceMsg(indx, begin, block)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
