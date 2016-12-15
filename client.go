@@ -246,10 +246,11 @@ func (c *Client) handleConnection(conn net.Conn) {
 			if t != nil {
 				fmt.Println("sending handshake")
 				conn.Write(createHandShakeMsg("BitTorrent protocol", t.InfoHash, c.Id))
+				bitMapMsg := createBitMapMsg(t)
+				fmt.Println("sending ", bitMapMsg)
+				conn.Write(bitMapMsg)
 			}
-			bitMapMsg := createBitMapMsg(t)
-			fmt.Println("sending ", bitMapMsg)
-			conn.Write(bitMapMsg)
+
 
 		} else {
 			readBuffer = append(readBuffer, buf...)
