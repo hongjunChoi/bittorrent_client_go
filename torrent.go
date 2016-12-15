@@ -2,13 +2,11 @@ package main
 
 import (
 	"bytes"
-	"container/list"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"os"
 	"strconv"
-	"sync"
 )
 
 type Torrent struct {
@@ -28,8 +26,6 @@ type Torrent struct {
 	TrackerUrl      string
 	TrackerInterval int
 	ClientId        string
-	WorkList        *list.List
-	WorkListLock    sync.RWMutex
 }
 
 func (t *Torrent) initBitMap() {
@@ -69,40 +65,16 @@ func (c *Client) handleUnchoke(peer *Peer, torrent *Torrent, payload []byte) {
 	peer.RemoteChoking = false
 
 	for i := 0; i < 20; i++ {
-		if !peer.RemoteChoking && peer.SelfInterested {
-			blockToRequest := torrent.getNextBlock(peer)
-			if blockToRequest != nil {
-				peer.sendRequestMessage(blockToRequest)
-			}
+		if i >= len(torrent.PeerWorkMap[peer]) {
+			return
 		}
+
+		b := torrent.PeerWorkMap[peer][i]
+		peer.sendRequestMessage(b)
 	}
-
-}
-
-func (torrent *Torrent) getNextBlock(peer *Peer) *Block {
-	workList := torrent.WorkList
-
-	torrent.WorkListLock.Lock()
-	defer torrent.WorkListLock.Unlock()
-
-	fmt.Println("==== left =======")
-	fmt.Println(workList.Len())
-	fmt.Println("===========")
-
-	for e := workList.Front(); e != nil; e = e.Next() {
-		nextBlock := (e.Value).(*Block)
-		pieceIndex := nextBlock.PieceIndex
-		bitShiftIndex := 7 - (pieceIndex % 8)
-		bitmapIndex := pieceIndex / 8
-
-		if getBit(peer.RemoteBitMap[bitmapIndex], int(bitShiftIndex)) == 1 {
-			torrent.WorkList.Remove(e)
-
-			return nextBlock
-		}
-	}
-
-	return nil
+	peer.WorkMapLock.Lock()
+	peer.CurrentBlock = 20
+	peer.WorkMapLock.Unlock()
 
 }
 
@@ -111,7 +83,8 @@ func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) 
 	conn := *peer.Connection
 	_, err := conn.Write(createUnChokeMsg())
 	if err != nil {
-		fmt.Println("==== error in sending unchoke  err : ", err, "   ==========")
+		fmt.Println("==== error in sending unchoke")
+		fmt.Println(err)
 	}
 }
 
@@ -204,7 +177,6 @@ func (piece *Piece) freeBlockMemory() {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("recved data...")
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]
@@ -235,14 +207,12 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 
 	if b == nil || uint32(b.Offset) != byteOffset {
 
-		if !peer.RemoteChoking && peer.SelfInterested {
-			blockToRequest := torrent.getNextBlock(peer)
-			if blockToRequest != nil {
-				peer.sendRequestMessage(blockToRequest)
-			} else {
-				fmt.Println("NIL")
-			}
+		peer.WorkMapLock.Lock()
+		if !peer.RemoteChoking && peer.SelfInterested && peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+			peer.sendRequestMessage(torrent.PeerWorkMap[peer][peer.CurrentBlock])
+			peer.CurrentBlock += 1
 		}
+		peer.WorkMapLock.Unlock()
 		return
 	}
 
@@ -272,8 +242,6 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 			file.Seek(fileMap[i].startIndx, 0)
 			if err != nil {
 				fmt.Println("ERROR IN WRITING TO FILE AFTER DOWNLOAD ... ", err)
-				file.Close()
-				return
 			}
 
 			file.Write(pieceBuf[start:end])
@@ -302,12 +270,14 @@ func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
 	}
 
 	//GET NEW BLOCK TO REQUEST
-	if !peer.RemoteChoking && peer.SelfInterested {
-		blockToRequest := torrent.getNextBlock(peer)
-		if blockToRequest != nil {
-			peer.sendRequestMessage(blockToRequest)
-		}
+	peer.WorkMapLock.Lock()
+	if !peer.RemoteChoking && peer.SelfInterested && peer.CurrentBlock < len(torrent.PeerWorkMap[peer]) {
+		toRequest := torrent.PeerWorkMap[peer][peer.CurrentBlock]
+		peer.sendRequestMessage(toRequest)
+		peer.CurrentBlock += 1
 	}
+
+	peer.WorkMapLock.Unlock()
 
 }
 
