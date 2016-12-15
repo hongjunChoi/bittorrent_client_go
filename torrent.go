@@ -177,7 +177,6 @@ func (piece *Piece) freeBlockMemory() {
 }
 
 func (c *Client) handlePiece(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("=== piece received... ====")
 	pieceIndex := binary.BigEndian.Uint32(payload[0:4])
 	byteOffset := binary.BigEndian.Uint32(payload[4:8])
 	data := payload[8:]

@@ -955,7 +955,6 @@ func (c *Client) connectToPeer(peer *Peer, torrent *Torrent) bool {
 }
 
 func (p *Peer) sendRequestMessage(b *Block) {
-	fmt.Println("sending request to peer .... ")
 	data := createRequestMsg(b.PieceIndex, b.Offset, b.Size)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {
