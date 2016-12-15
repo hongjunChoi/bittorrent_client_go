@@ -133,12 +133,12 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 	indx := binary.BigEndian.Uint32(payload[:4])
 	begin := binary.BigEndian.Uint32(payload[4:8])
 	length := int64(binary.BigEndian.Uint32(payload[8:12]))
-	fmt.Println("data requested size:", length)
 	fileMap := torrent.PieceMap[indx].FileMap
 
 	block := make([]byte, 0)
-
+	fmt.Println("start looking for piece", indx, begin, length )
 	for fIndx := 0; fIndx < len(fileMap); fIndx++ {
+		fmt.Println("looking at file ", fIndx)
 		file, err := os.Open(fileMap[fIndx].FileName)
 		if err != nil {
 			fmt.Println("error opening file: ", fileMap[fIndx].FileName)
@@ -151,6 +151,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			_, err = file.Read(data)
 			block = append(block, data...)
 			file.Close()
+			fmt.Println("inside entire file")
 			break
 		} else {
 			data := make([]byte, end-start)
@@ -158,11 +159,12 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 			_, err = file.Read(data)
 			length = length - (end - start)
 			block = append(block, data...)
+			fmt.Println("to next file")
 			file.Close()
 		}
 	}
-	fmt.Println("data size: ", len(block))
 	fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
+	fmt.Println(block)
 	peer.sendPieceMessage(indx, begin, block)
 }
 
