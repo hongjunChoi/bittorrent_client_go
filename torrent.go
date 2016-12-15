@@ -165,7 +165,7 @@ func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
 		}
 	}
 	fmt.Println("===== SENDING PIECE INDEX: ", indx, "BLOCK OFFSET: ", begin)
-	fmt.Println(block)
+	// fmt.Println(block)
 	peer.sendPieceMessage(indx, uint32(begin), block)
 }
 
