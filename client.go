@@ -193,6 +193,8 @@ func (c *Client) startListeningToSeed() {
 	for {
 		// Get net.TCPConn object
 		conn, err := listener.Accept()
+
+		fmt.Println("======== NEW CONNECTION SEEDING ====== \n\n")
 		if err != nil {
 			fmt.Println(err)
 			break
@@ -259,28 +261,28 @@ func (c *Client) handleConnection(conn net.Conn) {
 			}
 			bufferLen := len(readBuffer)
 			for int(size) <= bufferLen - 4 {
-				fmt.Println("---- msg ----")
+				// fmt.Println("---- msg ----")
 				protocol := readBuffer[4]
 				data := readBuffer[5: 5 + size - 1]
-				fmt.Println("size: ", size)
-				fmt.Println("protocol: ", protocol)
-				fmt.Println("payload: ", data)
-				fmt.Println("do something with this protocol")
+				// fmt.Println("size: ", size)
+				// fmt.Println("protocol: ", protocol)
+				// fmt.Println("payload: ", data)
+				// fmt.Println("do something with this protocol")
 
 				go c.FunctionMap[int(protocol)](p, t, data)
 
 				if int(size) == len(readBuffer) - 4 {
-					fmt.Println("end of buffer")
+					// fmt.Println("end of buffer")
 					readBuffer = make([]byte, 0)
 					bufferLen = 0
 					size = 0
 					break
 				} else {
-					fmt.Println("more left in buffer", bufferLen, size)
+					// fmt.Println("more left in buffer", bufferLen, size)
 					readBuffer = readBuffer[5 + size - 1:]
 					size =  binary.BigEndian.Uint32(readBuffer[0:4])
 					bufferLen = len(readBuffer)
-					fmt.Println(readBuffer)
+					// fmt.Println(readBuffer)
 				}
 			}
 			// go c.FunctionMap[int(protocol)](, t, data)
@@ -982,7 +984,7 @@ func (p *Peer) sendRequestMessage(b *Block) {
 }
 
 func (p *Peer) sendPieceMessage(indx uint32, begin uint32, block []byte) {
-	fmt.Println("sending piece message with payload")
+	// fmt.Println("sending piece message with payload")
 	data := createPieceMsg(indx, begin, block)
 	_, err := (*p.Connection).Write(data)
 	if err != nil {

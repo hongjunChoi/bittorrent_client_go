@@ -88,19 +88,19 @@ func (c *Client) handleInterested(peer *Peer, torrent *Torrent, payload []byte) 
 }
 
 func (c *Client) handleNotInterested(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE  NOT  INTERESTED =======")
+	// fmt.Println("===== HANDLE  NOT  INTERESTED =======")
 }
 
 func (c *Client) handleHave(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE  HAVE   =======")
+	// fmt.Println("===== HANDLE  HAVE   =======")
 }
 
 func (c *Client) handleBitfield(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE  BITFIELD   =======")
+	// fmt.Println("===== HANDLE  BITFIELD   =======")
 }
 
 func (c *Client) handleRequest(peer *Peer, torrent *Torrent, payload []byte) {
-	fmt.Println("===== HANDLE  REQUEST   =======")
+	// fmt.Println("===== HANDLE  REQUEST   =======")
 	indx := binary.BigEndian.Uint32(payload[:4])
 	begin := binary.BigEndian.Uint32(payload[4:8])
 	length := int64(binary.BigEndian.Uint32(payload[8:12]))
