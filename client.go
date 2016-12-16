@@ -364,6 +364,11 @@ func generateFilePath(path []string) string {
 }
 
 func createFiles(metaInfo *MetaInfo) {
+
+	if _, err := os.Stat("down"); os.IsNotExist(err) {
+		os.Mkdir("down", 0777)
+	}
+
 	numFiles := len(metaInfo.Info.Files)
 	if numFiles > 0 {
 		fmt.Println("====== ", numFiles, " files ========")
